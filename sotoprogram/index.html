@@ -14,14 +14,19 @@ body{
   flex-direction:column;
 }
 
-/* ===== Top Title Bar ===== */
+/* ===== Fixed Top Title Bar ===== */
 #topBar{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
   background:#111827;
   color:white;
   text-align:center;
   padding:15px;
   font-size:18px;
   font-weight:bold;
+  z-index:1000;
 }
 
 /* ===== Chat Area ===== */
@@ -29,7 +34,8 @@ body{
   flex:1;
   overflow-y:auto;
   padding:15px;
-  padding-bottom:90px;
+  margin-top:60px;        /* space for header */
+  margin-bottom:80px;     /* space for input */
 }
 
 .message{
@@ -52,13 +58,34 @@ body{
   color:white;
 }
 
-img{
+/* ===== Passport Style Preview ===== */
+.chat-img{
   width:100%;
+  height:180px;
+  object-fit:cover;
   margin-top:8px;
   border-radius:10px;
+  cursor:pointer;
 }
 
-/* ===== Input Box ===== */
+/* ===== Image Fullscreen Modal ===== */
+#imgModal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.9);
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+}
+
+#imgModal img{
+  max-width:95%;
+  max-height:95%;
+  border-radius:12px;
+}
+
+/* ===== Fixed Input Box ===== */
 #inputBox{
   position:fixed;
   bottom:0;
@@ -106,10 +133,24 @@ img{
   <button id="send">Send</button>
 </div>
 
+<!-- Image Modal -->
+<div id="imgModal" onclick="closeModal()">
+  <img id="modalImage">
+</div>
+
 <script>
 const chat = document.getElementById("chat");
 const text = document.getElementById("text");
 const send = document.getElementById("send");
+
+function openModal(src){
+  document.getElementById("modalImage").src = src;
+  document.getElementById("imgModal").style.display = "flex";
+}
+
+function closeModal(){
+  document.getElementById("imgModal").style.display = "none";
+}
 
 function addMessage(content, type){
   const div = document.createElement("div");
@@ -145,7 +186,7 @@ async function sendMessage(){
     lines.forEach(line=>{
       if(line.startsWith("IMAGE:")){
         const src = line.replace("IMAGE:","").trim();
-        formatted += `<img src="${src}" onerror="this.style.display='none'" />`;
+        formatted += `<img src="${src}" class="chat-img" onclick="openModal('${src}')" onerror="this.style.display='none'"/>`;
       }else{
         formatted += line + "<br>";
       }
