@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>All Stenter Report</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0f172a;
+  color:white;
+}
+
+/* ===== FIXED TITLE ===== */
+#titleBar{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  background:#065f46;
+  padding:14px;
+  text-align:center;
+  font-size:18px;
+  font-weight:bold;
+  z-index:1000;
+}
+
+/* ===== PRINT + PDF BUTTON ===== */
+#printBtn, #pdfBtn{
+  position:absolute;
+  top:10px;
+  padding:6px 12px;
+  border:none;
+  border-radius:6px;
+  color:white;
+  cursor:pointer;
+  font-size:13px;
+}
+
+#printBtn{
+  right:110px;
+  background:#22c55e;
+}
+
+#pdfBtn{
+  right:20px;
+  background:#3b82f6;
+}
+
+/* ===== FIXED COMMAND BAR ===== */
+#topBar{
+  position:fixed;
+  top:50px;
+  left:0;
+  width:100%;
+  background:#111827;
+  padding:8px;
+  overflow-x:auto;
+  white-space:nowrap;
+  z-index:999;
+}
+
+.cmd{
+  display:inline-block;
+  background:#1f2937;
+  padding:8px 12px;
+  margin:4px;
+  border-radius:8px;
+  font-size:13px;
+  cursor:pointer;
+}
+
+.cmd:hover{
+  background:#374151;
+}
+
+/* ===== CHAT AREA ===== */
+#chat{
+  margin-top:110px;
+  margin-bottom:70px;
+  padding:15px;
+  height:calc(100vh - 180px);
+  overflow-y:auto;
+}
+
+.message{
+  max-width:85%;
+  padding:12px;
+  margin-bottom:10px;
+  border-radius:12px;
+  line-height:1.6;
+  word-wrap:break-word;
+  font-size:14px;
+}
+
+.user{
+  background:#22c55e;
+  margin-left:auto;
+}
+
+.bot{
+  background:#1e293b;
+}
+
+/* ===== INPUT ===== */
+#inputBox{
+  position:fixed;
+  bottom:0;
+  left:0;
+  width:100%;
+  display:flex;
+  padding:10px;
+  background:#111827;
+}
+
+#text{
+  flex:1;
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  font-size:15px;
+}
+
+#send{
+  margin-left:8px;
+  padding:12px 16px;
+  border:none;
+  border-radius:10px;
+  background:#22c55e;
+  color:white;
+  font-size:15px;
+}
+</style>
+
+<!-- PDF Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+</head>
+
+<body>
+
+<!-- ===== TITLE ===== -->
+<div id="titleBar">
+  📊 All Stenter Report
+  <button id="printBtn" onclick="printChat()">🖨 Print</button>
+  <button id="pdfBtn" onclick="downloadPDF()">📄 PDF</button>
+</div>
+
+<!-- ===== COMMANDS ===== -->
+<div id="topBar">
+  <span class="cmd" onclick="quick('totall')">Totall</span>
+  <span class="cmd" onclick="quick('totall stn')">Totall STN</span>
+  <span class="cmd" onclick="quick('stn 1')">Stn 1</span>
+  <span class="cmd" onclick="quick('stn 2')">Stn 2</span>
+  <span class="cmd" onclick="quick('stn 3')">Stn 3</span>
+  <span class="cmd" onclick="quick('stn 4')">Stn 4</span>
+  <span class="cmd" onclick="quick('stn 5')">Stn 5</span>
+  <span class="cmd" onclick="quick('dry')">Dry</span>
+  <span class="cmd" onclick="quick('boro finish')">Boro Finish</span>
+  <span class="cmd" onclick="quick('soto finish')">Soto Finish</span>
+  <span class="cmd" onclick="quick('digital coating')">Digital Coating</span>
+  <span class="cmd" onclick="quick('1 feb')">1 Feb</span>
+  <span class="cmd" onclick="quick('1 feb stn 1')">1 Feb Stn 1</span>
+  <span class="cmd" onclick="quick('1 feb dry')">1 Feb Dry</span>
+</div>
+
+<!-- ===== CHAT ===== -->
+<div id="chat"></div>
+
+<!-- ===== INPUT ===== -->
+<div id="inputBox">
+  <input id="text" placeholder="Type Date / STN / Process..." />
+  <button id="send">Send</button>
+</div>
+
+<script>
+const chat = document.getElementById("chat");
+const text = document.getElementById("text");
+const send = document.getElementById("send");
+
+let lastUserQuery = "";
+
+function addMessage(content, type){
+  const div = document.createElement("div");
+  div.className = "message " + type;
+  div.innerHTML = content;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function quick(cmd){
+  text.value = cmd;
+  sendMessage();
+}
+
+async function sendMessage(){
+  const question = text.value.trim();
+  if(!question) return;
+
+  lastUserQuery = question;
+
+  addMessage(question, "user");
+  text.value="";
+
+  const loadingDiv = document.createElement("div");
+  loadingDiv.className="message bot";
+  loadingDiv.innerHTML="Searching...";
+  chat.appendChild(loadingDiv);
+
+  try{
+    const res = await fetch("/ask",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question})
+    });
+
+    const data = await res.json();
+    loadingDiv.remove();
+    addMessage(data.reply.replace(/\n/g,"<br>"), "bot");
+
+  }catch(err){
+    loadingDiv.remove();
+    addMessage("❌ Server Error", "bot");
+  }
+}
+
+send.onclick = sendMessage;
+
+text.addEventListener("keypress", function(e){
+  if(e.key==="Enter"){
+    sendMessage();
+  }
+});
+
+/* ===== PRINT FUNCTION ===== */
+function printChat(){
+
+  const botMessages = document.querySelectorAll(".bot");
+  let reportContent = "";
+
+  botMessages.forEach(msg=>{
+    reportContent += `<div style="margin-bottom:10px;">${msg.innerHTML}</div>`;
+  });
+
+  const today = new Date();
+  const dateTime = today.toLocaleString();
+
+  const newWindow = window.open("", "", "width=900,height=700");
+
+  newWindow.document.write(`
+    <html>
+    <head>
+      <title>Stenter Report</title>
+      <style>
+        body{ font-family:Arial; padding:30px; }
+        h1{ text-align:center; }
+        hr{ margin:20px 0; }
+      </style>
+    </head>
+    <body>
+      <h1>Sukhy Dyeing & Finishing Mills LTD.</h1>
+      <p><b>Query:</b> ${lastUserQuery}</p>
+      <p><b>Date:</b> ${dateTime}</p>
+      <hr>
+      ${reportContent}
+      <hr>
+      <p>Prepared By: Shohug</p>
+    </body>
+    </html>
+  `);
+
+  newWindow.document.close();
+  newWindow.print();
+}
+
+/* ===== ENTERPRISE PDF DOWNLOAD ===== */
+function downloadPDF(){
+
+  const botMessages = document.querySelectorAll(".bot");
+  let reportContent = "";
+  let totalLines = 0;
+
+  botMessages.forEach(msg=>{
+    reportContent += `
+      <div style="margin-bottom:12px;padding:10px;background:#f8fafc;border-left:4px solid #065f46;font-size:13px;line-height:1.6;">
+        ${msg.innerHTML}
+      </div>
+    `;
+    totalLines++;
+  });
+
+  const today = new Date();
+  const dateTime = today.toLocaleString();
+
+  const fileDate =
+    today.getFullYear()+"-"+(today.getMonth()+1)+"-"+today.getDate()+"_"+today.getHours()+"-"+today.getMinutes();
+
+  const element = document.createElement("div");
+
+  element.innerHTML = `
+    <div style="padding:30px;font-family:Arial;color:#000;">
+      <div style="text-align:center;margin-bottom:10px;">
+        <img src="https://i.imgur.com/8Km9tLL.png" style="height:60px;margin-bottom:5px;">
+        <h1 style="margin:0;font-size:20px;">Sukhy Dyeing & Finishing Mills LTD.</h1>
+        <div style="font-size:14px;">Enterprise Stenter Production Report</div>
+      </div>
+      <hr>
+      <div style="margin-top:10px;font-size:13px;">
+        <b>Query:</b> ${lastUserQuery || "Custom Report"} <br>
+        <b>Generated:</b> ${dateTime}
+      </div>
+      <hr style="margin:15px 0;">
+      <div style="background:#ecfdf5;padding:10px;border:1px solid #10b981;margin-bottom:15px;font-size:13px;">
+        <b>Total Report Sections:</b> ${totalLines}
+      </div>
+      ${reportContent}
+      <hr style="margin:20px 0;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;">
+        <div>
+          Prepared By: Shohug <br>
+          Department: Production ERP
+        </div>
+        <div>
+          Signature: ____________________
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:25px;font-size:11px;">
+        Page 1 of 1
+      </div>
+    </div>
+  `;
+
+  html2pdf()
+    .from(element)
+    .set({
+      margin:10,
+      filename:`Stenter_Report_${fileDate}.pdf`,
+      html2canvas:{ scale:2 },
+      jsPDF:{ unit:'mm', format:'a4', orientation:'portrait' }
+    })
+    .save();
+}
+</script>
+
+</body>
+</html>
