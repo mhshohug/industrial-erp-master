@@ -40,6 +40,19 @@ header{
  box-shadow:0 4px 12px rgba(0,0,0,.4);
 }
 
+#printBtn{
+ position:absolute;
+ right:20px;
+ top:14px;
+ background:#22c55e;
+ border:none;
+ padding:6px 14px;
+ border-radius:20px;
+ font-size:13px;
+ font-weight:bold;
+ cursor:pointer;
+}
+
 #chat{
  margin-top:75px;
  flex:1;
@@ -173,7 +186,10 @@ button:hover{
 
 <body>
 
-<header>🏭 34" Factory ERP AI</header>
+<header>
+🏭 34" Factory ERP AI
+<button id="printBtn" onclick="printChat()">Print</button>
+</header>
 
 <div id="chat">
 <div class="msg bot">
@@ -228,7 +244,7 @@ function send(){
  input.value="";
  suggestions.style.display="none";
 
- fetch("/export/api/ask",{   <!-- ✅ শুধু এই লাইন change -->
+ fetch("/export/api/ask",{
   method:"POST",
   headers:{"Content-Type":"application/json"},
   body:JSON.stringify({question:text})
@@ -282,6 +298,71 @@ input.addEventListener("input",function(){
 
  suggestions.style.display="block";
 });
+
+/* ===== ISO STYLE PRINT FUNCTION ===== */
+function printChat(){
+
+ var messages=document.querySelectorAll(".bot");
+ var content="";
+
+ messages.forEach(function(msg){
+  content+=`<div style="margin-bottom:10px;">${msg.innerHTML}</div>`;
+ });
+
+ var today=new Date();
+ var dateTime=today.toLocaleString();
+
+ var win=window.open("","","width=900,height=700");
+
+ win.document.write(`
+  <html>
+  <head>
+   <title>ISO ERP Report</title>
+   <style>
+    body{font-family:Arial;padding:40px;}
+    .header{text-align:center;margin-bottom:20px;}
+    .company{font-size:24px;font-weight:bold;letter-spacing:1px;}
+    .address{font-size:14px;color:#555;margin-top:4px;}
+    .erp{font-size:16px;font-weight:bold;margin-top:6px;}
+    .line{height:2px;background:#000;width:70%;margin:15px auto;}
+    .meta{margin-top:10px;}
+    .footer{margin-top:40px;font-size:12px;display:flex;justify-content:space-between;}
+   </style>
+  </head>
+  <body>
+
+   <div class="header">
+     <div class="company">Sukhy Dyeing and Finishing Mills LTD.</div>
+     <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
+     <div class="erp">Sukhy ERP</div>
+     <div class="line"></div>
+   </div>
+
+   <div class="meta">
+     <b>Generated:</b> ${dateTime}
+   </div>
+
+   <hr>
+
+   ${content}
+
+   <div class="footer">
+     <div>
+       Prepared By: Mehedi Hasan <br>
+       Developed By: Mehedi Hasan
+     </div>
+     <div>
+       Signature: ___________________________
+     </div>
+   </div>
+
+  </body>
+  </html>
+ `);
+
+ win.document.close();
+ win.print();
+}
 </script>
 
 </body>
