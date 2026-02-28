@@ -26,7 +26,6 @@ body{
  overflow:hidden;
 }
 
-/* ===== HEADER ===== */
 header{
  position:fixed;
  top:0;
@@ -41,7 +40,6 @@ header{
  box-shadow:0 4px 12px rgba(0,0,0,.4);
 }
 
-/* ===== CHAT AREA ===== */
 #chat{
  margin-top:75px;
  flex:1;
@@ -53,7 +51,6 @@ header{
  gap:14px;
 }
 
-/* ===== MESSAGE CARD ===== */
 .msg{
  max-width:88%;
  padding:16px 18px;
@@ -80,7 +77,6 @@ header{
  border:1px solid #475569;
 }
 
-/* ===== SUGGESTION FLOAT ===== */
 #suggestions{
  position:fixed;
  bottom:95px;
@@ -111,7 +107,6 @@ header{
  background:#334155;
 }
 
-/* ===== QUICK BAR ===== */
 #quickBar{
  position:fixed;
  bottom:65px;
@@ -137,7 +132,6 @@ header{
  background:#334155;
 }
 
-/* ===== FOOTER ===== */
 footer{
  position:fixed;
  bottom:0;
@@ -214,15 +208,11 @@ var commands=[
 "marcerise per day","bleach per day"
 ];
 
-/* ===== ADD MESSAGE WITH BEAUTIFUL FORMAT ===== */
 function add(text,type){
  var d=document.createElement("div");
  d.className="msg "+type;
 
- // Bold Support
  text=text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
-
- // New line support
  text=text.replace(/\n/g,"<br>");
 
  d.innerHTML=text;
@@ -230,7 +220,6 @@ function add(text,type){
  chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== SEND ===== */
 function send(){
  var text=input.value.trim();
  if(text==="") return;
@@ -239,7 +228,7 @@ function send(){
  input.value="";
  suggestions.style.display="none";
 
- fetch("/ask",{
+ fetch("/export/api/ask",{   <!-- ✅ শুধু এই লাইন change -->
   method:"POST",
   headers:{"Content-Type":"application/json"},
   body:JSON.stringify({question:text})
@@ -253,13 +242,11 @@ function send(){
  });
 }
 
-/* ===== QUICK BUTTON ===== */
 function quick(t){
  input.value=t;
  send();
 }
 
-/* ===== SIMPLE SUGGEST ===== */
 input.addEventListener("input",function(){
  var value=this.value.toLowerCase();
  suggestions.innerHTML="";
