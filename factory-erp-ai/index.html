@@ -79,11 +79,18 @@ button{
 </style>
 </head>
 <body>
-<header>60" Fabric ERP</header><div id="chat"></div>
-<div id="suggest"></div><div id="inputArea">
+
+<header>60" Fabric ERP</header>
+
+<div id="chat"></div>
+<div id="suggest"></div>
+
+<div id="inputArea">
 <input id="q" placeholder="প্রশ্ন লিখুন... যেমন: sill 590" />
 <button onclick="send()">Send</button>
-</div><script>
+</div>
+
+<script>
 const chat=document.getElementById("chat");
 const suggest=document.getElementById("suggest");
 
@@ -108,17 +115,27 @@ async function send(){
   const input=document.getElementById("q");
   const text=input.value.trim();
   if(!text) return;
+
   add(text,"user");
   input.value="";
   add("...","bot");
   const loading=chat.lastChild;
+
   try{
-    const r=await fetch("/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:text})});
+    const r=await fetch("/factory/api/ask",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question:text})
+    });
+
     const j=await r.json();
     loading.innerText=j.reply||"No reply";
+
   }catch{
     loading.innerText="Server error";
   }
 }
-</script></body>
+</script>
+
+</body>
 </html>
