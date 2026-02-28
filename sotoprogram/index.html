@@ -45,14 +45,35 @@ body{
   color:white;
 }
 
-/* 🔥 STUMP IMAGE SIZE */
-img{
-  width:110px;
-  height:110px;
+/* ✅ Passport Size */
+.passport-img{
+  width:120px;
+  height:150px;
   object-fit:cover;
-  border-radius:10px;
+  border-radius:8px;
   margin-top:8px;
-  border:2px solid #334155;
+  border:2px solid #22c55e;
+  cursor:pointer;
+  transition:.2s;
+}
+.passport-img:hover{
+  transform:scale(1.05);
+}
+
+/* ✅ Fullscreen Overlay */
+#imageModal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.9);
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+}
+#imageModal img{
+  max-width:90%;
+  max-height:90%;
+  border-radius:12px;
 }
 
 #inputBox{
@@ -91,7 +112,6 @@ img{
 <body>
 
 <div id="topBar">34" Program View</div>
-
 <div id="chat"></div>
 
 <div id="inputBox">
@@ -99,10 +119,32 @@ img{
   <button id="send">Send</button>
 </div>
 
+<!-- ✅ Image Zoom Modal -->
+<div id="imageModal" onclick="closeModal()">
+  <img id="modalImg">
+</div>
+
 <script>
 const chat = document.getElementById("chat");
 const text = document.getElementById("text");
 const send = document.getElementById("send");
+
+function convertDriveLink(url){
+  if(url.includes("drive.google.com/file/d/")){
+    const id = url.split("/d/")[1].split("/")[0];
+    return "https://drive.google.com/uc?export=view&id=" + id;
+  }
+  return url;
+}
+
+function openModal(src){
+  document.getElementById("modalImg").src = src;
+  document.getElementById("imageModal").style.display = "flex";
+}
+
+function closeModal(){
+  document.getElementById("imageModal").style.display = "none";
+}
 
 function addMessage(content, type){
   const div = document.createElement("div");
@@ -138,12 +180,16 @@ async function sendMessage(){
     lines.forEach(line=>{
       if(line.startsWith("IMAGE:")){
         let src = line.replace("IMAGE:","").trim();
+        src = convertDriveLink(src);
 
-        if(!src.startsWith("http") && !src.startsWith("/")){
-          src = "/" + src;
-        }
-
-        formatted += `<img src="${src}" />`;
+        formatted += `
+          <img 
+            src="${src}" 
+            class="passport-img"
+            onclick="openModal('${src}')"
+            onerror="this.style.display='none'"
+          />
+        `;
       }else{
         formatted += line + "<br>";
       }
