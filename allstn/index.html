@@ -127,13 +127,11 @@ body{
 
 <body>
 
-<!-- ===== TITLE ===== -->
 <div id="titleBar">
   📊 All Stenter Report
   <button id="printBtn" onclick="printChat()">🖨 Print</button>
 </div>
 
-<!-- ===== COMMANDS ===== -->
 <div id="topBar">
   <span class="cmd" onclick="quick('totall')">Totall</span>
   <span class="cmd" onclick="quick('totall stn')">Totall STN</span>
@@ -142,16 +140,10 @@ body{
   <span class="cmd" onclick="quick('stn 3')">Stn 3</span>
   <span class="cmd" onclick="quick('stn 4')">Stn 4</span>
   <span class="cmd" onclick="quick('stn 5')">Stn 5</span>
-  <span class="cmd" onclick="quick('dry')">Dry</span>
-  <span class="cmd" onclick="quick('boro finish')">Boro Finish</span>
-  <span class="cmd" onclick="quick('soto finish')">Soto Finish</span>
-  <span class="cmd" onclick="quick('digital coating')">Digital Coating</span>
 </div>
 
-<!-- ===== CHAT ===== -->
 <div id="chat"></div>
 
-<!-- ===== INPUT ===== -->
 <div id="inputBox">
   <input id="text" placeholder="Type Date / STN / Process..." />
   <button id="send">Send</button>
@@ -216,7 +208,6 @@ text.addEventListener("keypress", function(e){
   }
 });
 
-/* ===== PRINT FUNCTION ===== */
 function printChat(){
 
   const botMessages = document.querySelectorAll(".bot");
@@ -234,29 +225,46 @@ function printChat(){
   newWindow.document.write(`
     <html>
     <head>
-      <title>Stenter Report</title>
+      <title>ISO Production Report</title>
       <style>
-        body{ font-family:Arial; padding:30px; }
-        h1{ text-align:center; }
-        hr{ margin:20px 0; }
+        body{ font-family:Arial; padding:40px; }
+        .header{text-align:center;margin-bottom:20px;}
+        .company{font-size:24px;font-weight:bold;letter-spacing:1px;}
+        .address{font-size:14px;color:#555;margin-top:4px;}
+        .erp{font-size:16px;font-weight:bold;margin-top:6px;}
+        .line{height:2px;background:#000;width:70%;margin:15px auto;}
+        .meta{text-align:left;margin-top:10px;}
+        .footer{margin-top:40px;font-size:12px;display:flex;justify-content:space-between;}
       </style>
     </head>
     <body>
-      <h1>Sukhy Dyeing & Finishing Mills LTD.</h1>
-      <p><b>Query:</b> ${lastUserQuery}</p>
-      <p><b>Date:</b> ${dateTime}</p>
-      <hr>
-      ${reportContent}
-      <hr>
-      <div style="display:flex;justify-content:space-between;font-size:12px;">
-        <div>
-          Prepared By: Ruhul Amin <br>
-          Developed By: Mehedi Hasan
-        </div>
-        <div>
-          Signature: ______𝓜𝓮𝓱𝓮𝓭𝓲______________
-        </div>
+
+    <div class="header">
+      <div class="company">Sukhy Dyeing and Finishing Mills LTD.</div>
+      <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
+      <div class="erp">Sukhy ERP</div>
+      <div class="line"></div>
+    </div>
+
+    <div class="meta">
+      <b>Query:</b> ${lastUserQuery}<br>
+      <b>Generated:</b> ${dateTime}
+    </div>
+
+    <hr>
+
+    ${reportContent}
+
+    <div class="footer">
+      <div>
+        Prepared By: Ruhul Amin <br>
+        Developed By: Mehedi Hasan
       </div>
+      <div>
+        Signature: ___________________________
+      </div>
+    </div>
+
     </body>
     </html>
   `);
