@@ -44,11 +44,17 @@ body{
   background:#1e293b;
   color:white;
 }
+
+/* 🔥 STUMP IMAGE SIZE */
 img{
-  width:100%;
-  margin-top:8px;
+  width:110px;
+  height:110px;
+  object-fit:cover;
   border-radius:10px;
+  margin-top:8px;
+  border:2px solid #334155;
 }
+
 #inputBox{
   position:fixed;
   bottom:0;
@@ -131,7 +137,12 @@ async function sendMessage(){
 
     lines.forEach(line=>{
       if(line.startsWith("IMAGE:")){
-        const src = line.replace("IMAGE:","");
+        let src = line.replace("IMAGE:","").trim();
+
+        if(!src.startsWith("http") && !src.startsWith("/")){
+          src = "/" + src;
+        }
+
         formatted += `<img src="${src}" />`;
       }else{
         formatted += line + "<br>";
