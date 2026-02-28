@@ -52,7 +52,6 @@ body{
   color:white;
 }
 
-/* IMAGE SAME AS YOUR ORIGINAL */
 img{
   width:100%;
   margin-top:8px;
@@ -112,14 +111,6 @@ const chat = document.getElementById("chat");
 const text = document.getElementById("text");
 const send = document.getElementById("send");
 
-function convertDriveLink(url){
-  if(url.includes("drive.google.com/file/d/")){
-    const id = url.split("/d/")[1].split("/")[0];
-    return "https://drive.google.com/uc?export=view&id=" + id;
-  }
-  return url;
-}
-
 function addMessage(content, type){
   const div = document.createElement("div");
   div.className = "message " + type;
@@ -153,15 +144,8 @@ async function sendMessage(){
 
     lines.forEach(line=>{
       if(line.startsWith("IMAGE:")){
-        let src = line.replace("IMAGE:","").trim();
-        src = convertDriveLink(src);
-
-        formatted += `
-          <img 
-            src="${src}" 
-            onerror="this.style.display='none'"
-          />
-        `;
+        const src = line.replace("IMAGE:","").trim();
+        formatted += `<img src="${src}" onerror="this.style.display='none'" />`;
       }else{
         formatted += line + "<br>";
       }
