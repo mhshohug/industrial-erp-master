@@ -158,14 +158,19 @@ async function send(){
   }
 }
 
-/* ===== ISO STYLE PRINT FUNCTION ===== */
+/* ===== FINAL ISO STYLE PRINT (➤ ARROW STYLE) ===== */
 function printChat(){
 
   const messages=document.querySelectorAll(".bot");
   let content="";
 
   messages.forEach(msg=>{
-    content+=`<div style="margin-bottom:10px;">${msg.innerText}</div>`;
+    content+=`
+      <div style="margin-bottom:8px;">
+        <span style="font-weight:bold;margin-right:6px;">➤</span>
+        ${msg.innerText}
+      </div>
+    `;
   });
 
   const today=new Date();
@@ -178,12 +183,13 @@ function printChat(){
   <head>
   <title>60 Fabric Report</title>
   <style>
-  body{font-family:Arial;padding:40px;}
-  .header{text-align:center;margin-bottom:20px;}
-  .company{font-size:24px;font-weight:bold;letter-spacing:1px;}
-  .address{font-size:14px;color:#555;margin-top:4px;}
-  .erp{font-size:16px;font-weight:bold;margin-top:6px;}
-  .line{height:2px;background:#000;width:70%;margin:15px auto;}
+  @page { size:A4; margin:20mm; }
+  body{font-family:Arial;padding:30px;}
+  .header{text-align:center;margin-bottom:15px;}
+  .company{font-size:24px;font-weight:bold;}
+  .address{font-size:13px;color:#555;margin-top:4px;}
+  .erp{font-size:15px;font-weight:bold;margin-top:6px;}
+  .line{height:2px;background:#000;width:70%;margin:10px auto;}
   .footer{margin-top:40px;font-size:12px;display:flex;justify-content:space-between;}
   </style>
   </head>
