@@ -116,28 +116,34 @@ async function sendMessage(){
 
   const loading = addMessage("Searching...", "bot loading");
 
-  const res = await fetch("/export/api/ask",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({question})
-  });
+  try{
+    const res = await fetch("/soto/api/ask",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question})
+    });
 
-  const data = await res.json();
-  loading.remove();
+    const data = await res.json();
+    loading.remove();
 
-  let formatted="";
-  const lines = data.reply.split("\n");
+    let formatted="";
+    const lines = (data.reply || "").split("\n");
 
-  lines.forEach(line=>{
-    if(line.startsWith("IMAGE:")){
-      const src = line.replace("IMAGE:","");
-      formatted += `<img src="${src}" />`;
-    }else{
-      formatted += line + "<br>";
-    }
-  });
+    lines.forEach(line=>{
+      if(line.startsWith("IMAGE:")){
+        const src = line.replace("IMAGE:","");
+        formatted += `<img src="${src}" />`;
+      }else{
+        formatted += line + "<br>";
+      }
+    });
 
-  addMessage(formatted, "bot");
+    addMessage(formatted, "bot");
+
+  }catch{
+    loading.remove();
+    addMessage("Server error", "bot");
+  }
 }
 
 send.onclick = sendMessage;
