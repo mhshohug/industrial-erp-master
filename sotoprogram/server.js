@@ -7,8 +7,6 @@ router.use(cors());
 router.use(express.json());
 router.use(express.static(__dirname));
 
-const PORT = 3000;
-
 const SHEET_ID = "17AlSp8QqY3_YmW9bb1W-fMg9m7FFBxtYKXc2Cr9fq3A";
 const GID = "1037993780";
 
@@ -30,15 +28,24 @@ async function loadSheet() {
   }
 }
 
-// ================= IMAGE PROXY =================
+// ================= IMAGE PROXY (SAFE VERSION) =================
 router.get("/img/:id", async (req, res) => {
   try {
-    const driveUrl = `https://drive.google.com/uc?export=view&id=${req.params.id}`;
-    const img = await axios.get(driveUrl, { responseType: "arraybuffer" });
 
-    res.set("Content-Type", "image/jpeg");
+    const driveUrl = `https://drive.google.com/uc?export=download&id=${req.params.id}`;
+
+    const img = await axios.get(driveUrl, {
+      responseType: "arraybuffer",
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
+    });
+
+    res.set("Content-Type", img.headers["content-type"] || "image/jpeg");
     res.send(img.data);
-  } catch {
+
+  } catch (err) {
+    console.log("Image Error:", err.message);
     res.status(404).send("No Image");
   }
 });
@@ -102,7 +109,7 @@ SILL: ${sill}
       if (img.includes("drive.google.com")) {
         const idMatch = img.match(/[-\w]{25,}/);
         if (idMatch) {
-          finalReply += `IMAGE:/img/${idMatch[0]}\n`;
+          finalReply += `IMAGE:/soto/api/img/${idMatch[0]}\n`;
         }
       }
 
