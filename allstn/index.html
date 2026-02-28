@@ -209,7 +209,7 @@ async function sendMessage(){
   chat.appendChild(loadingDiv);
 
   try{
-    const res = await fetch("/ask",{
+    const res = await fetch("/allstn/api/ask",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({question})
