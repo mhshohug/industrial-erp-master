@@ -217,6 +217,9 @@ var chat=document.getElementById("chat");
 var input=document.getElementById("q");
 var suggestions=document.getElementById("suggestions");
 
+/* ✅ FIXED VARIABLE */
+var lastUserQuery = "";
+
 var commands=[
 "totall","today",
 "cpb per day","jigger per day",
@@ -241,6 +244,10 @@ function send(){
  if(text==="") return;
 
  add(text,"user");
+
+ /* ✅ SAVE LAST QUERY */
+ lastUserQuery = text;
+
  input.value="";
  suggestions.style.display="none";
 
@@ -299,7 +306,7 @@ input.addEventListener("input",function(){
  suggestions.style.display="block";
 });
 
-/* ===== ISO STYLE PRINT FUNCTION ===== */
+/* ===== ISO STYLE PRINT FUNCTION (FIXED) ===== */
 function printChat(){
 
  var messages=document.querySelectorAll(".bot");
@@ -339,15 +346,14 @@ function printChat(){
    </div>
 
    <div class="meta">
-  <div style="font-size:18px;font-weight:bold;margin-bottom:6px;">
-    34" Fabric Dyeing Report
-  </div>
-  <b>Query:</b> ${lastUserQuery || "Custom Command"}<br>
-  <b>Generated:</b> ${dateTime}
-</div>
+    <div style="font-size:18px;font-weight:bold;margin-bottom:6px;">
+      34" Fabric Dyeing Report
+    </div>
+    <b>Query:</b> ${lastUserQuery || "Custom Command"}<br>
+    <b>Generated:</b> ${dateTime}
+   </div>
 
    <hr>
-
    ${content}
 
    <div class="footer">
