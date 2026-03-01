@@ -53,6 +53,7 @@ header{
 }
 .user{background:#2563eb;align-self:flex-end}
 .bot{background:#1f2937;align-self:flex-start}
+
 #inputArea{
   position:sticky;
   bottom:0;
@@ -91,8 +92,31 @@ button{
   cursor:pointer;
   white-space:nowrap;
 }
+
+/* ✅ NEW DROPDOWN SUGGESTION */
+#dropdown{
+  position:absolute;
+  bottom:70px;
+  left:10px;
+  right:10px;
+  background:#1e293b;
+  border-radius:12px;
+  display:none;
+  max-height:200px;
+  overflow-y:auto;
+  box-shadow:0 10px 25px rgba(0,0,0,.5);
+  z-index:999;
+}
+.drop-item{
+  padding:10px;
+  border-bottom:1px solid #334155;
+  cursor:pointer;
+}
+.drop-item:last-child{border-bottom:none}
+.drop-item:hover{background:#334155}
 </style>
 </head>
+
 <body>
 
 <header>
@@ -101,7 +125,9 @@ button{
 </header>
 
 <div id="chat"></div>
+
 <div id="suggest"></div>
+<div id="dropdown"></div>
 
 <div id="inputArea">
 <input id="q" placeholder="প্রশ্ন লিখুন... যেমন: sill 590" />
@@ -111,16 +137,49 @@ button{
 <script>
 const chat=document.getElementById("chat");
 const suggest=document.getElementById("suggest");
+const dropdown=document.getElementById("dropdown");
+const input=document.getElementById("q");
 
 let lastQuery="";
 
 const quick=["sill 590","3 feb cpb","total dyeing","party RB design"];
+const commands=[
+"sill 590","3 feb cpb","total dyeing",
+"party RB design","today",
+"cpb per day","jigger per day"
+];
+
+/* QUICK CHIPS */
 quick.forEach(t=>{
   const d=document.createElement("div");
   d.className="sug";
   d.innerText=t;
-  d.onclick=()=>{document.getElementById("q").value=t;send();};
+  d.onclick=()=>{input.value=t;send();};
   suggest.appendChild(d);
+});
+
+/* DROPDOWN SUGGEST */
+input.addEventListener("input",function(){
+  const val=this.value.toLowerCase();
+  dropdown.innerHTML="";
+  if(!val){dropdown.style.display="none";return;}
+
+  const match=commands.filter(c=>c.includes(val));
+  if(match.length===0){dropdown.style.display="none";return;}
+
+  match.forEach(m=>{
+    const d=document.createElement("div");
+    d.className="drop-item";
+    d.innerText=m;
+    d.onclick=function(){
+      input.value=m;
+      dropdown.style.display="none";
+      input.focus();
+    };
+    dropdown.appendChild(d);
+  });
+
+  dropdown.style.display="block";
 });
 
 function add(text,type){
@@ -132,11 +191,11 @@ function add(text,type){
 }
 
 async function send(){
-  const input=document.getElementById("q");
   const text=input.value.trim();
   if(!text) return;
 
   lastQuery=text;
+  dropdown.style.display="none";
 
   add(text,"user");
   input.value="";
@@ -158,77 +217,50 @@ async function send(){
   }
 }
 
-/* ===== FINAL ISO STYLE PRINT (➤ ARROW STYLE) ===== */
+/* PRINT SAME AS BEFORE */
 function printChat(){
+  const bots=document.querySelectorAll(".bot");
+  if(bots.length===0) return;
 
-  const messages=document.querySelectorAll(".bot");
-  let content="";
-
-  messages.forEach(msg=>{
-    content+=`
-      <div style="margin-bottom:8px;">
-        <span style="font-weight:bold;margin-right:6px;">➤</span>
-        ${msg.innerText}
-      </div>
-    `;
-  });
-
-  const today=new Date();
-  const dateTime=today.toLocaleString();
+  const lastReport=bots[bots.length-1].innerText;
+  const dateTime=new Date().toLocaleString();
 
   const win=window.open("","","width=900,height=700");
-
   win.document.write(`
   <html>
   <head>
-  <title>60 Fabric Report</title>
   <style>
-  @page { size:A4; margin:20mm; }
+  @page { size:A4 portrait; margin:20mm; }
   body{font-family:Arial;padding:30px;}
-  .header{text-align:center;margin-bottom:15px;}
-  .company{font-size:24px;font-weight:bold;}
-  .address{font-size:13px;color:#555;margin-top:4px;}
-  .erp{font-size:15px;font-weight:bold;margin-top:6px;}
-  .line{height:2px;background:#000;width:70%;margin:10px auto;}
-  .footer{margin-top:40px;font-size:12px;display:flex;justify-content:space-between;}
+  .company{text-align:center;font-size:28px;font-weight:bold;}
+  .address{text-align:center;font-size:14px;margin-top:4px;}
+  .erp{text-align:center;font-size:16px;font-weight:bold;margin-top:6px;}
+  .line{height:2px;background:#000;width:70%;margin:12px auto;}
+  .title{text-align:center;font-size:20px;font-weight:bold;margin:10px 0;}
+  .footer{margin-top:60px;font-size:13px;display:flex;justify-content:space-between;}
   </style>
   </head>
   <body>
 
-  <div class="header">
-    <div class="company">Sukhy Dyeing and Finishing Mills LTD.</div>
-    <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
-    <div class="erp">Sukhy ERP</div>
-    <div class="line"></div>
-  </div>
+  <div class="company">Sukhy Dyeing & Finishing Mills Ltd.</div>
+  <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
+  <div class="erp">Sukhy ERP</div>
+  <div class="line"></div>
 
-  <div style="text-align:center;font-size:18px;font-weight:bold;margin-bottom:10px;">
-    60" Fabric Dyeing Report
-  </div>
+  <div class="title">60" Fabric Dyeing Report</div>
 
-  <div>
-    <b>Query:</b> ${lastQuery || "Custom Command"}<br>
-    <b>Generated:</b> ${dateTime}
-  </div>
-
+  <div><b>Query:</b> ${lastQuery}<br><b>Generated:</b> ${dateTime}</div>
   <hr>
-
-  ${content}
+  ➤ ${lastReport.replace(/\n/g,"<br>➤ ")}
 
   <div class="footer">
-    <div>
-      Prepared By: Mehedi Hasan <br>
-      Developed By: Mehedi Hasan
-    </div>
-    <div>
-      Signature: ___________________________
-    </div>
+    <div>Prepared By: Mehedi Hasan<br>Developed By: Mehedi Hasan</div>
+    <div>Signature: ___________________________</div>
   </div>
 
   </body>
   </html>
   `);
-
   win.document.close();
   win.print();
 }
