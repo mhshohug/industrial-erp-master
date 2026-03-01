@@ -266,7 +266,44 @@ return res.json({reply:`📊 **Report: Sill ${sill}**
 ━━━━━━━━━━━━━━━━
 📊 ${diff<=0?"Extra":"Short"}: ${Math.abs(diff).toLocaleString()} yds`});
 }
+// ===== LOT SEARCH =====
+let lotMatch = q.match(/lot\s*(\d+)/) || q.match(/^\d{4,6}$/);
 
+if(lotMatch && !q.includes("sill")){
+
+    const lotNumber = lotMatch[1] || lotMatch[0];
+
+    const gRow = grey.find(r =>
+        (r[6]||"").replace(/,/g,'').trim() === lotNumber
+    );
+
+    if(!gRow)
+        return res.json({reply:`Lot ${lotNumber} পাওয়া যায়নি ওস্তাদ।`});
+
+    const sill = gRow[2];
+    const party = gRow[3];
+    const quality = gRow[4];
+    const lotSize = parseFloat((gRow[6]||"").replace(/,/g,''))||0;
+
+    const rolling = roll.reduce((a,r)=>
+        (r[1]||"").trim()===sill
+        ? a+(parseFloat((r[7]||"").replace(/,/g,''))||0)
+        : a
+    ,0);
+
+    const diff = rolling - lotSize;
+
+    return res.json({
+        reply:`📦 LOT REPORT: ${lotNumber}
+━━━━━━━━━━━━━━━━
+🏷️ Party: ${party}
+🔹 Sill: ${sill}
+📜 Quality: ${quality}
+📦 Lot Size: ${lotSize.toLocaleString()} yds
+✅ Rolling: ${rolling.toLocaleString()} yds
+📊 ${diff>=0?"Extra":"Short"}: ${Math.abs(diff).toLocaleString()} yds`
+    });
+}
 
 // ===== OLD MONTHLY NAME SEARCH (তোমার পুরাতনটা থাকবে) =====
 const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
