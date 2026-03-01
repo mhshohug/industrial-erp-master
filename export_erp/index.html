@@ -90,98 +90,52 @@ header{
  border:1px solid #475569;
 }
 
-#suggestions{
- position:fixed;
- bottom:95px;
- left:15px;
- right:15px;
- background:#1e293b;
- border-radius:14px;
- border:1px solid #334155;
- display:none;
- max-height:220px;
- overflow-y:auto;
- z-index:999;
- box-shadow:0 10px 25px rgba(0,0,0,.5);
+/* ✅ ADD REPORT IDENTIFIER */
+.report-msg{
+ border-left:4px solid #22c55e;
 }
 
-.suggest-item{
- padding:12px;
- border-bottom:1px solid #334155;
- cursor:pointer;
- transition:.2s;
-}
+/* ✅ PRINT CONTROL SYSTEM */
+@media print{
 
-.suggest-item:last-child{
- border-bottom:none;
-}
+ body{
+  background:white !important;
+  color:black !important;
+ }
 
-.suggest-item:hover{
- background:#334155;
-}
+ header, footer, #quickBar, #suggestions{
+  display:none !important;
+ }
 
-#quickBar{
- position:fixed;
- bottom:65px;
- left:0;
- width:100%;
- overflow-x:auto;
- white-space:nowrap;
- padding:8px 12px;
-}
+ .user{
+  display:none !important;
+ }
 
-.quick-btn{
- display:inline-block;
- background:#1e293b;
- padding:7px 16px;
- border-radius:25px;
- margin-right:10px;
- font-size:14px;
- cursor:pointer;
- transition:.2s;
-}
+ .bot{
+  display:none !important;
+ }
 
-.quick-btn:hover{
- background:#334155;
-}
+ .report-msg:last-of-type{
+  display:block !important;
+  background:white !important;
+  color:black !important;
+  border:none !important;
+  box-shadow:none !important;
+  font-size:14px !important;
+  line-height:1.7 !important;
+ }
 
-footer{
- position:fixed;
- bottom:0;
- left:0;
- width:100%;
- background:#1e293b;
- padding:12px;
- display:flex;
- gap:10px;
- box-shadow:0 -4px 12px rgba(0,0,0,.4);
-}
+ #chat{
+  margin:0;
+  padding:0;
+ }
 
-input{
- flex:1;
- padding:14px;
- border-radius:30px;
- border:none;
- outline:none;
- font-size:16px;
- background:#0f172a;
- color:white;
+ @page{
+  size:A4 portrait;
+  margin:15mm;
+ }
 }
-
-button{
- padding:12px 20px;
- border:none;
- border-radius:30px;
- background:var(--accent);
- font-weight:bold;
- cursor:pointer;
- transition:.2s;
-}
-
-button:hover{
- opacity:.85;
-}
-</style>
+ </style>
 </head>
 
 <body>
@@ -211,13 +165,10 @@ button:hover{
 <input id="q" placeholder="Type command...">
 <button onclick="send()">Send</button>
 </footer>
-
 <script>
 var chat=document.getElementById("chat");
 var input=document.getElementById("q");
 var suggestions=document.getElementById("suggestions");
-
-/* ✅ FIXED VARIABLE */
 var lastUserQuery = "";
 
 var commands=[
@@ -229,7 +180,13 @@ var commands=[
 
 function add(text,type){
  var d=document.createElement("div");
- d.className="msg "+type;
+
+ /* ✅ REPORT IDENTIFY */
+ if(type==="bot"){
+   d.className="msg bot report-msg";
+ }else{
+   d.className="msg "+type;
+ }
 
  text=text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
  text=text.replace(/\n/g,"<br>");
@@ -244,8 +201,6 @@ function send(){
  if(text==="") return;
 
  add(text,"user");
-
- /* ✅ SAVE LAST QUERY */
  lastUserQuery = text;
 
  input.value="";
@@ -256,11 +211,11 @@ function send(){
   headers:{"Content-Type":"application/json"},
   body:JSON.stringify({question:text})
  })
- .then(function(res){return res.json();})
- .then(function(data){
+ .then(res=>res.json())
+ .then(data=>{
   add(data.reply,"bot");
  })
- .catch(function(){
+ .catch(()=>{
   add("⚠️ Server error","bot");
  });
 }
@@ -273,11 +228,7 @@ function quick(t){
 input.addEventListener("input",function(){
  var value=this.value.toLowerCase();
  suggestions.innerHTML="";
-
- if(value===""){
-  suggestions.style.display="none";
-  return;
- }
+ if(value===""){ suggestions.style.display="none"; return; }
 
  var list=[];
  for(var i=0;i<commands.length;i++){
@@ -304,65 +255,67 @@ input.addEventListener("input",function(){
  }
 
  suggestions.style.display="block";
-});
+}
 
-/* ===== ISO STYLE PRINT FUNCTION (FIXED) ===== */
+/* ✅ CORPORATE PRINT FUNCTION */
 function printChat(){
 
- var messages=document.querySelectorAll(".bot");
- var content="";
+ var reports=document.querySelectorAll(".report-msg");
 
- messages.forEach(function(msg){
-  content+=`<div style="margin-bottom:10px;">${msg.innerHTML}</div>`;
- });
+ if(reports.length===0){
+   alert("No report to print");
+   return;
+ }
 
- var today=new Date();
- var dateTime=today.toLocaleString();
+ var lastReport=reports[reports.length-1].innerHTML;
+ var now=new Date();
+ var dateTime=now.toLocaleString();
 
  var win=window.open("","","width=900,height=700");
 
  win.document.write(`
   <html>
   <head>
-   <title>ISO ERP Report</title>
+   <title>Production Report</title>
    <style>
     body{font-family:Arial;padding:40px;}
-    .header{text-align:center;margin-bottom:20px;}
-    .company{font-size:24px;font-weight:bold;letter-spacing:1px;}
-    .address{font-size:14px;color:#555;margin-top:4px;}
-    .erp{font-size:16px;font-weight:bold;margin-top:6px;}
-    .line{height:2px;background:#000;width:70%;margin:15px auto;}
-    .meta{margin-top:10px;}
-    .footer{margin-top:40px;font-size:12px;display:flex;justify-content:space-between;}
+    .company{font-size:30px;font-weight:bold;text-align:center;}
+    .address{text-align:center;font-size:14px;margin-top:5px;}
+    .title{text-align:center;font-size:18px;font-weight:bold;margin-top:10px;}
+    .meta{margin-top:15px;font-size:14px;}
+    .footer{margin-top:50px;font-size:13px;display:flex;justify-content:space-between;}
+    @page{size:A4 portrait;margin:15mm;}
    </style>
   </head>
   <body>
 
-   <div class="header">
-     <div class="company">Sukhy Dyeing and Finishing Mills LTD.</div>
-     <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
-     <div class="erp">Sukhy ERP</div>
-     <div class="line"></div>
+   <div class="company">
+     Sukhy Dyeing & Finishing Mills Ltd.
+   </div>
+
+   <div class="address">
+     Kurerpar, Sekherchor, Narsingdi.
+   </div>
+
+   <div class="title">
+     34" Production Report
    </div>
 
    <div class="meta">
-    <div style="font-size:18px;font-weight:bold;margin-bottom:6px;">
-      34" Fabric Dyeing Report
-    </div>
-    <b>Query:</b> ${lastUserQuery || "Custom Command"}<br>
-    <b>Generated:</b> ${dateTime}
+     <b>Generated:</b> ${dateTime}
    </div>
 
    <hr>
-   ${content}
+
+   ${lastReport}
 
    <div class="footer">
      <div>
-       Prepared By: Mehedi Hasan <br>
+       Prepared By: Mehedi Hasan<br>
        Developed By: Mehedi Hasan
      </div>
      <div>
-       Signature: ___________________________
+       Signature: ________________________
      </div>
    </div>
 
