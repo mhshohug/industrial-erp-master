@@ -564,7 +564,113 @@ TOTAL : ${total.toLocaleString()} yds
     const data=getDateReport(db,dateObj);
     return res.json({reply:formatDateReport(data)});
   }
+/* ===================== MONTH SMART SUMMARY ===================== */
 
+const monthMatch = question.match(
+/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*(process|dyeing|folding|totall|total|report|full|summary)?$/
+);
+
+if (monthMatch) {
+
+  const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  const selectedMonthIndex = months[monthMatch[1]];
+  const section = monthMatch[2] || "full";
+
+  const today = new Date();
+  const year = today.getFullYear();
+
+  function getMonthSum(sheet){
+    return db[sheet]?.slice(1).reduce((t,row)=>{
+      const d=parseSheetDate(row[0]);
+      if(d && d.getMonth()===selectedMonthIndex && d.getFullYear()===year)
+        return t+safeNumber(row[6]);
+      return t;
+    },0) || 0;
+  }
+
+  const process = {
+    s: getMonthSum("singing"),
+    m: getMonthSum("marcerise"),
+    b: getMonthSum("bleach")
+  };
+
+  const dyeing = {
+    c: getMonthSum("cpb"),
+    j: getMonthSum("jigger"),
+    ex: getMonthSum("ex_jigger"),
+    n: getMonthSum("napthol")
+  };
+
+  const folding = getMonthSum("folding");
+
+  const dyeTotal =
+    dyeing.c +
+    dyeing.j +
+    dyeing.ex +
+    dyeing.n;
+
+  // ================= RESPONSE LOGIC =================
+
+  if(section === "dyeing"){
+    return res.json({
+      reply:`
+${monthMatch[1].toUpperCase()} DYEING SUMMARY
+----------------------------------
+CPB       : ${dyeing.c.toLocaleString()}
+Jigger    : ${dyeing.j.toLocaleString()}
+Ex-Jigger : ${dyeing.ex.toLocaleString()}
+Napthol   : ${dyeing.n.toLocaleString()}
+----------------------------------
+TOTAL     : ${dyeTotal.toLocaleString()} yds
+`
+    });
+  }
+
+  if(section === "process"){
+    return res.json({
+      reply:`
+${monthMatch[1].toUpperCase()} PROCESS SUMMARY
+----------------------------------
+Singing   : ${process.s.toLocaleString()}
+Mercerise : ${process.m.toLocaleString()}
+Bleach    : ${process.b.toLocaleString()}
+`
+    });
+  }
+
+  if(section === "folding"){
+    return res.json({
+      reply:`
+${monthMatch[1].toUpperCase()} FOLDING
+----------------------------------
+Total Folding : ${folding.toLocaleString()} yds
+`
+    });
+  }
+
+  // Default Full Report
+  return res.json({
+    reply:`
+MONTHLY FACTORY SUMMARY (${monthMatch[1].toUpperCase()})
+----------------------------------
+PROCESS
+Singing   : ${process.s.toLocaleString()}
+Mercerise : ${process.m.toLocaleString()}
+Bleach    : ${process.b.toLocaleString()}
+
+DYEING
+CPB       : ${dyeing.c.toLocaleString()}
+Jigger    : ${dyeing.j.toLocaleString()}
+Ex-Jigger : ${dyeing.ex.toLocaleString()}
+Napthol   : ${dyeing.n.toLocaleString()}
+
+Folding   : ${folding.toLocaleString()}
+----------------------------------
+TOTAL DYEING : ${dyeTotal.toLocaleString()} yds
+`
+  });
+
+}
 
   /* ===================== SILL SEARCH ===================== */
 
