@@ -85,7 +85,7 @@ router.post("/ask", async (req, res) => {
       const idx = findColumn(`stn ${stn}`);
 
       return res.json({
-        reply:
+        reply:  
 `📅 ${day} ${month.toUpperCase()} - STN ${stn}
 ━━━━━━━━━━━━━━━━━━
 ${getTotal(idx,dateRows).toLocaleString()}`
@@ -120,7 +120,65 @@ ${getTotal(idx,dateRows).toLocaleString()}`
 
     return res.json({ reply: output });
   }
+// =======================
+// SMART MONTH WISE SUMMARY
+// feb / feb totall / feb full / feb report / feb summary
+// =======================
 
+const monthSmartMatch =
+  question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(\s*(totall|total|full|report|summary))?$/);
+
+if (monthSmartMatch) {
+
+  const selectedMonth = monthSmartMatch[1];
+
+  const monthRows =
+    rows.filter(r =>
+      r[0] &&
+      r[0].toLowerCase().includes(selectedMonth)
+    );
+
+  if (monthRows.length === 0)
+    return res.json({ reply: `❌ ${selectedMonth.toUpperCase()} মাসে ডেটা নেই` });
+
+  let output =
+`📅 ${selectedMonth.toUpperCase()} MONTH FULL SUMMARY
+━━━━━━━━━━━━━━━━━━
+`;
+
+  let grandTotal = 0;
+
+  // ================= STN SUMMARY =================
+  output += "🏭 STN SUMMARY\n━━━━━━━━━━━━━━━━━━\n";
+
+  headers.forEach((h,i)=>{
+    const name = h.toLowerCase();
+    if (name.includes("stn ") && !name.includes("1 day")) {
+      const total = getTotal(i, monthRows);
+      grandTotal += total;
+      output += `${h} : ${total.toLocaleString()}\n`;
+    }
+  });
+
+  output += `\nTotall Stn : ${grandTotal.toLocaleString()}\n`;
+
+  // ================= PROCESS TOTAL =================
+  output += "\n━━━━━━━━━━━━━━━━━━\n⚙ PROCESS TOTAL\n━━━━━━━━━━━━━━━━━━\n";
+
+  headers.forEach((h,i)=>{
+    const name = h.toLowerCase();
+    if (
+      name.includes("finish") ||
+      name.includes("coating") ||
+      name.includes("dry") ||
+      name.includes("production")
+    ) {
+      output += `${h} : ${getTotal(i, monthRows).toLocaleString()}\n`;
+    }
+  });
+
+  return res.json({ reply: output });
+}
   if (question.includes("totall stn")) {
 
     let output =
