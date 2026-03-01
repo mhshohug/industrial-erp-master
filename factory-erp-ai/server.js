@@ -295,7 +295,57 @@ if(monthMatch && q.includes("total")){
 ✅ **Total Rolling: ${totals.r.toLocaleString()} yds**`
     });
 }
+// ===== UNIVERSAL PER DAY REPORT =====
 
+if(q.includes("per day")){
+
+    const sectionMap = {
+        singing: {rows: sing, idx: 8},
+        marcerise: {rows: marc, idx: 8},
+        cpb: {rows: cpb, idx: 6},
+        jet: {rows: jet, idx: 6},
+        jigger: {rows: jig, idx: 7},
+        rolling: {rows: roll, idx: 7}
+    };
+
+    const sectionKey = Object.keys(sectionMap).find(s => q.includes(s));
+
+    if(sectionKey){
+
+        const {rows, idx} = sectionMap[sectionKey];
+
+        let dayMap = {};
+
+        rows.forEach(r=>{
+            const date = normalizeSheetDate(r[0]);
+            const val = parseFloat((r[idx]||"").replace(/,/g,'')) || 0;
+
+            if(!date || val <= 0) return;
+
+            if(!dayMap[date]) dayMap[date] = 0;
+
+            dayMap[date] += val;
+        });
+
+        const sortedDates = Object.keys(dayMap)
+            .sort((a,b)=>moment(a,"DD-MMM-YYYY") - moment(b,"DD-MMM-YYYY"));
+
+        if(!sortedDates.length)
+            return res.json({reply:`${sectionKey.toUpperCase()} এর কোনো ডাটা পাওয়া যায়নি।`});
+
+        let total = 0;
+        let reply = `📅 ${sectionKey.toUpperCase()} Per Day Report\n━━━━━━━━━━━━━━━━\n`;
+
+        sortedDates.forEach((d,i)=>{
+            total += dayMap[d];
+            reply += `${i+1}. ${d} — ${dayMap[d].toLocaleString()} yds\n`;
+        });
+
+        reply += `\n📊 Total: ${total.toLocaleString()} yds`;
+
+        return res.json({reply});
+    }
+}
 // ===== TOTAL =====
 if(q.includes("total")){
 const tSum=(rows,idx)=>rows.reduce((a,r)=>a+(parseFloat((r[idx]||"").replace(/,/g,''))||0),0);
