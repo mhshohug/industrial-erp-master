@@ -346,15 +346,85 @@ if(q.includes("per day")){
         return res.json({reply});
     }
 }
-// ===== TOTAL =====
-if(q.includes("total")){
-const tSum=(rows,idx)=>rows.reduce((a,r)=>a+(parseFloat((r[idx]||"").replace(/,/g,''))||0),0);
-const t={s:tSum(sing,8),m:tSum(marc,8),c:tSum(cpb,6),j:tSum(jet,6),jg:tSum(jig,7),r:tSum(roll,7)};
+// ===== GRAND TOTAL / MONTHLY BREAKDOWN =====
+if(isTotalQuery){
 
-if(q.includes("dyeing"))
-return res.json({reply:`🌍 **Monthly Dyeing Report**\n━━━━━━━━━━━━━━━━\n🔹 CPB: ${t.c.toLocaleString()} yds\n🔹 Jet: ${t.j.toLocaleString()} yds\n🔹 Jigger: ${t.jg.toLocaleString()} yds\n📍 **Total Dyeing: ${(t.c+t.j+t.jg).toLocaleString()} yds`});
+    // ===== If only dyeing =====
+    if(q.includes("dyeing")){
 
-return res.json({reply:`🌍 **Monthly Grand Total**\n━━━━━━━━━━━━━━━━\n🔹 Singing: ${t.s.toLocaleString()} yds\n🔹 Marcerise: ${t.m.toLocaleString()} yds\n🔹 CPB: ${t.c.toLocaleString()} yds\n🔹 Jet: ${t.j.toLocaleString()} yds\n🔹 Jigger: ${t.jg.toLocaleString()} yds\n✅ **Total Rolling: ${t.r.toLocaleString()} yds`});
+        const sectionMap = {
+            cpb: {rows: cpb, idx: 6},
+            jet: {rows: jet, idx: 6},
+            jigger: {rows: jig, idx: 7}
+        };
+
+        let monthData = {};
+
+        Object.keys(sectionMap).forEach(sec=>{
+            const {rows, idx} = sectionMap[sec];
+
+            rows.forEach(r=>{
+                const d = normalizeSheetDate(r[0]);
+                const m = moment(d,"DD-MMM-YYYY",true);
+                if(!m.isValid()) return;
+
+                const monthKey = m.format("MMM-YYYY");
+                const val = parseFloat((r[idx]||"").replace(/,/g,''))||0;
+                if(val<=0) return;
+
+                if(!monthData[monthKey]){
+                    monthData[monthKey] = {cpb:0, jet:0, jigger:0};
+                }
+
+                monthData[monthKey][sec] += val;
+            });
+        });
+
+        const sortedMonths = Object.keys(monthData)
+            .sort((a,b)=>moment(a,"MMM-YYYY")-moment(b,"MMM-YYYY"));
+
+        if(!sortedMonths.length)
+            return res.json({reply:"কোনো Dyeing ডাটা পাওয়া যায়নি।"});
+
+        let reply = "🌍 Dyeing Monthly Breakdown\n━━━━━━━━━━━━━━━━\n";
+
+        sortedMonths.forEach(m=>{
+            const data = monthData[m];
+            const total = data.cpb + data.jet + data.jigger;
+
+            reply += `\n📅 ${m}
+   🔹 CPB: ${data.cpb.toLocaleString()} yds
+   🔹 Jet: ${data.jet.toLocaleString()} yds
+   🔹 Jigger: ${data.jigger.toLocaleString()} yds
+   📍 Total: ${total.toLocaleString()} yds\n`;
+        });
+
+        return res.json({reply});
+    }
+
+    // ===== Full Grand Total (আগের মতই থাকবে) =====
+    const tSum = (rows,idx)=>
+        rows.reduce((a,r)=>a+(parseFloat((r[idx]||"").replace(/,/g,''))||0),0);
+
+    const t = {
+        s: tSum(sing,8),
+        m: tSum(marc,8),
+        c: tSum(cpb,6),
+        j: tSum(jet,6),
+        jg: tSum(jig,7),
+        r: tSum(roll,7)
+    };
+
+    return res.json({
+        reply:`🌍 Monthly Grand Total
+━━━━━━━━━━━━━━━━
+🔹 Singing: ${t.s.toLocaleString()} yds
+🔹 Marcerise: ${t.m.toLocaleString()} yds
+🔹 CPB: ${t.c.toLocaleString()} yds
+🔹 Jet: ${t.j.toLocaleString()} yds
+🔹 Jigger: ${t.jg.toLocaleString()} yds
+✅ Total Rolling: ${t.r.toLocaleString()} yds`
+    });
 }
 
 // ===== SMART DIRECT SEARCH =====
