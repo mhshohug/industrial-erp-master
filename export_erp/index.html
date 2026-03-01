@@ -20,7 +20,6 @@ body{
  background:linear-gradient(180deg,#0b1324,#0e1a2f);
  color:white;
  height:100vh;
- height:100dvh;
  display:flex;
  flex-direction:column;
  overflow:hidden;
@@ -71,12 +70,6 @@ header{
  line-height:1.5;
  font-size:15px;
  box-shadow:0 6px 18px rgba(0,0,0,.35);
- animation:fadeIn .2s ease-in-out;
-}
-
-@keyframes fadeIn{
- from{opacity:0; transform:translateY(5px);}
- to{opacity:1; transform:translateY(0);}
 }
 
 .user{
@@ -90,52 +83,87 @@ header{
  border:1px solid #475569;
 }
 
-/* ✅ ADD REPORT IDENTIFIER */
-.report-msg{
- border-left:4px solid #22c55e;
+#suggestions{
+ position:fixed;
+ bottom:95px;
+ left:15px;
+ right:15px;
+ background:#1e293b;
+ border-radius:14px;
+ border:1px solid #334155;
+ display:none;
+ max-height:220px;
+ overflow-y:auto;
+ z-index:999;
+ box-shadow:0 10px 25px rgba(0,0,0,.5);
 }
 
-/* ✅ PRINT CONTROL SYSTEM */
-@media print{
-
- body{
-  background:white !important;
-  color:black !important;
- }
-
- header, footer, #quickBar, #suggestions{
-  display:none !important;
- }
-
- .user{
-  display:none !important;
- }
-
- .bot{
-  display:none !important;
- }
-
- .report-msg:last-of-type{
-  display:block !important;
-  background:white !important;
-  color:black !important;
-  border:none !important;
-  box-shadow:none !important;
-  font-size:14px !important;
-  line-height:1.7 !important;
- }
-
- #chat{
-  margin:0;
-  padding:0;
- }
-
- @page{
-  size:A4 portrait;
-  margin:15mm;
- }
+.suggest-item{
+ padding:12px;
+ border-bottom:1px solid #334155;
+ cursor:pointer;
 }
- </style>
+
+.suggest-item:last-child{
+ border-bottom:none;
+}
+
+.suggest-item:hover{
+ background:#334155;
+}
+
+#quickBar{
+ position:fixed;
+ bottom:65px;
+ left:0;
+ width:100%;
+ overflow-x:auto;
+ white-space:nowrap;
+ padding:8px 12px;
+}
+
+.quick-btn{
+ display:inline-block;
+ background:#1e293b;
+ padding:7px 16px;
+ border-radius:25px;
+ margin-right:10px;
+ font-size:14px;
+ cursor:pointer;
+}
+
+footer{
+ position:fixed;
+ bottom:0;
+ left:0;
+ width:100%;
+ background:#1e293b;
+ padding:12px;
+ display:flex;
+ gap:10px;
+ box-shadow:0 -4px 12px rgba(0,0,0,.4);
+}
+
+input{
+ flex:1;
+ padding:14px;
+ border-radius:30px;
+ border:none;
+ outline:none;
+ font-size:16px;
+ background:#0f172a;
+ color:white;
+}
+
+button{
+ padding:12px 20px;
+ border:none;
+ border-radius:30px;
+ background:var(--accent);
+ font-weight:bold;
+ cursor:pointer;
+}
+</style>
 </head>
 
 <body>
@@ -158,39 +186,32 @@ header{
 <span class="quick-btn" onclick="quick('today')">today</span>
 <span class="quick-btn" onclick="quick('cpb per day')">cpb per day</span>
 <span class="quick-btn" onclick="quick('jigger per day')">jigger per day</span>
-<span class="quick-btn" onclick="quick('sill 590')">sill 590</span>
+<span class="quick-btn" onclick="quick('total dyeing')">total dyeing</span>
 </div>
 
 <footer>
 <input id="q" placeholder="Type command...">
 <button onclick="send()">Send</button>
 </footer>
+
 <script>
 var chat=document.getElementById("chat");
 var input=document.getElementById("q");
 var suggestions=document.getElementById("suggestions");
-var lastUserQuery = "";
+var lastUserQuery="";
 
 var commands=[
 "totall","today",
 "cpb per day","jigger per day",
 "napthol per day","singing per day",
-"marcerise per day","bleach per day"
+"marcerise per day","bleach per day",
+"total dyeing"
 ];
 
 function add(text,type){
  var d=document.createElement("div");
-
- /* ✅ REPORT IDENTIFY */
- if(type==="bot"){
-   d.className="msg bot report-msg";
- }else{
-   d.className="msg "+type;
- }
-
- text=text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+ d.className="msg "+type;
  text=text.replace(/\n/g,"<br>");
-
  d.innerHTML=text;
  chat.appendChild(d);
  chat.scrollTop=chat.scrollHeight;
@@ -201,8 +222,7 @@ function send(){
  if(text==="") return;
 
  add(text,"user");
- lastUserQuery = text;
-
+ lastUserQuery=text;
  input.value="";
  suggestions.style.display="none";
 
@@ -228,7 +248,11 @@ function quick(t){
 input.addEventListener("input",function(){
  var value=this.value.toLowerCase();
  suggestions.innerHTML="";
- if(value===""){ suggestions.style.display="none"; return; }
+
+ if(value===""){
+  suggestions.style.display="none";
+  return;
+ }
 
  var list=[];
  for(var i=0;i<commands.length;i++){
@@ -255,24 +279,17 @@ input.addEventListener("input",function(){
  }
 
  suggestions.style.display="block";
-}
+});
 
-/* ✅ CORPORATE PRINT FUNCTION */
+/* CORPORATE PRINT */
 function printChat(){
+ var bots=document.querySelectorAll(".bot");
+ if(bots.length===0) return;
 
- var reports=document.querySelectorAll(".report-msg");
-
- if(reports.length===0){
-   alert("No report to print");
-   return;
- }
-
- var lastReport=reports[reports.length-1].innerHTML;
- var now=new Date();
- var dateTime=now.toLocaleString();
+ var lastReport=bots[bots.length-1].innerHTML;
+ var now=new Date().toLocaleString();
 
  var win=window.open("","","width=900,height=700");
-
  win.document.write(`
   <html>
   <head>
@@ -284,45 +301,22 @@ function printChat(){
     .title{text-align:center;font-size:18px;font-weight:bold;margin-top:10px;}
     .meta{margin-top:15px;font-size:14px;}
     .footer{margin-top:50px;font-size:13px;display:flex;justify-content:space-between;}
-    @page{size:A4 portrait;margin:15mm;}
    </style>
   </head>
   <body>
-
-   <div class="company">
-     Sukhy Dyeing & Finishing Mills Ltd.
-   </div>
-
-   <div class="address">
-     Kurerpar, Sekherchor, Narsingdi.
-   </div>
-
-   <div class="title">
-     34" Production Report
-   </div>
-
-   <div class="meta">
-     <b>Generated:</b> ${dateTime}
-   </div>
-
+   <div class="company">Sukhy Dyeing & Finishing Mills Ltd.</div>
+   <div class="address">Kurerpar, Sekherchor, Narsingdi.</div>
+   <div class="title">34" Production Report</div>
+   <div class="meta"><b>Generated:</b> ${now}</div>
    <hr>
-
    ${lastReport}
-
    <div class="footer">
-     <div>
-       Prepared By: Mehedi Hasan<br>
-       Developed By: Mehedi Hasan
-     </div>
-     <div>
-       Signature: ________________________
-     </div>
+     <div>Prepared By: Mehedi Hasan<br>Developed By: Mehedi Hasan</div>
+     <div>Signature: ________________________</div>
    </div>
-
   </body>
   </html>
  `);
-
  win.document.close();
  win.print();
 }
