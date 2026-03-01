@@ -537,7 +537,7 @@ if(isTotalQuery){
 ✅ Total Rolling: ${t.r.toLocaleString()} yds`
     });
 }
-// ===== MONTH ROLLING INSPECTION REPORT (FINAL SINGLE LINE STYLE) =====
+// ===== MONTH ROLLING INSPECTION (PRO GRID VERSION) =====
 
 if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
 
@@ -550,7 +550,6 @@ if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
 
     let sillMap = {};
 
-    // Rolling sheet থেকে মাস অনুযায়ী collect
     roll.forEach(r=>{
         const date = normalizeSheetDate(r[0]);
         const m = moment(date,"DD-MMM-YYYY",true);
@@ -564,53 +563,83 @@ if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
         sillMap[sill] += rollingVal;
     });
 
-    if(!Object.keys(sillMap).length)
-        return res.json({reply:`${monthName.toUpperCase()} মাসে Rolling ডাটা নাই।`});
-
     let rows = [];
 
     Object.keys(sillMap).forEach(sill=>{
-
         const gRow = grey.find(gr=>(gr[2]||"").trim()===sill);
         if(!gRow) return;
 
         const party = gRow[3] || "Unknown";
         const lot = parseFloat((gRow[6]||"").replace(/,/g,'')) || 0;
         const rollingTotal = sillMap[sill];
-
         const diff = rollingTotal - lot;
         const percent = lot>0 ? ((diff/lot)*100) : 0;
 
-        rows.push({
-            sill,
-            party,
-            lot,
-            rolling: rollingTotal,
-            diff,
-            percent
-        });
+        rows.push({sill:Number(sill), party, lot, rollingTotal, diff, percent});
     });
 
-    // Percent অনুযায়ী sort (সবচেয়ে বেশি loss উপরে)
-    rows.sort((a,b)=>a.percent - b.percent);
+    // 🔹 Sort by Sill number ascending
+    rows.sort((a,b)=>a.sill - b.sill);
 
-    let reply = `📊 ${monthName.toUpperCase()} ROLLING INSPECTION\n`;
-    reply += "══════════════════════════════════════\n\n";
+    let html = `
+    <h3 style="text-align:center;margin-bottom:10px;">
+        ${monthName.toUpperCase()} ROLLING INSPECTION
+    </h3>
 
-    rows.forEach((r,i)=>{
+    <table style="
+        width:100%;
+        border-collapse:collapse;
+        font-size:14px;
+        text-align:center;
+    ">
+        <thead>
+            <tr style="background:#f2f2f2;font-weight:bold;">
+                <th style="border:1px solid #000;padding:6px;">%</th>
+                <th style="border:1px solid #000;padding:6px;">Sill</th>
+                <th style="border:1px solid #000;padding:6px;">Party</th>
+                <th style="border:1px solid #000;padding:6px;">Lot</th>
+                <th style="border:1px solid #000;padding:6px;">Rolling</th>
+                <th style="border:1px solid #000;padding:6px;">Diff</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
 
-        const diffSign = r.diff>=0 ? "+" : "";
-        const percentSign = r.percent>=0 ? "+" : "";
+    rows.forEach(r=>{
 
-        reply += `${i+1}. ${r.sill} | ${r.party} | ${r.lot}→${r.rolling} | ${diffSign}${r.diff} (${percentSign}${r.percent.toFixed(2)}%)\n`;
+        const isLoss = r.diff < 0;
+        const color = isLoss ? "red" : "green";
 
-        if(i !== rows.length-1)
-            reply += "══════════════════════════════════════\n";
+        html += `
+        <tr>
+            <td style="border:1px solid #000;padding:6px;color:${color};font-weight:bold;">
+                ${r.percent.toFixed(2)}%
+            </td>
+            <td style="border:1px solid #000;padding:6px;">
+                ${r.sill}
+            </td>
+            <td style="border:1px solid #000;padding:6px;text-align:left;">
+                ${r.party}
+            </td>
+            <td style="border:1px solid #000;padding:6px;">
+                ${r.lot.toLocaleString()}
+            </td>
+            <td style="border:1px solid #000;padding:6px;">
+                ${r.rollingTotal.toLocaleString()}
+            </td>
+            <td style="border:1px solid #000;padding:6px;color:${color};font-weight:bold;">
+                ${r.diff>=0?"+":""}${r.diff.toLocaleString()}
+            </td>
+        </tr>
+        `;
     });
 
-    reply += "\n\n══════════════════════════════════════";
+    html += `
+        </tbody>
+    </table>
+    `;
 
-    return res.json({reply});
+    return res.json({reply: html});
 }
 
 // ===== SMART DIRECT SEARCH (Original) =====
