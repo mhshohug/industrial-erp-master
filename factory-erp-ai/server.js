@@ -537,7 +537,81 @@ if(isTotalQuery){
 ✅ Total Rolling: ${t.r.toLocaleString()} yds`
     });
 }
+// ===== MONTH ROLLING INSPECTION REPORT (FINAL SINGLE LINE STYLE) =====
 
+if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
+
+    const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
+    if(!monthMatch)
+        return res.json({reply:"মাস লিখতে হবে (e.g. feb rolling inspection)"});
+
+    const monthName = monthMatch[1];
+    const monthIndex = moment().month(monthName).month();
+
+    let sillMap = {};
+
+    // Rolling sheet থেকে মাস অনুযায়ী collect
+    roll.forEach(r=>{
+        const date = normalizeSheetDate(r[0]);
+        const m = moment(date,"DD-MMM-YYYY",true);
+        if(!m.isValid() || m.month() !== monthIndex) return;
+
+        const sill = (r[1]||"").trim();
+        const rollingVal = parseFloat((r[7]||"").replace(/,/g,'')) || 0;
+        if(!sill || rollingVal <= 0) return;
+
+        if(!sillMap[sill]) sillMap[sill] = 0;
+        sillMap[sill] += rollingVal;
+    });
+
+    if(!Object.keys(sillMap).length)
+        return res.json({reply:`${monthName.toUpperCase()} মাসে Rolling ডাটা নাই।`});
+
+    let rows = [];
+
+    Object.keys(sillMap).forEach(sill=>{
+
+        const gRow = grey.find(gr=>(gr[2]||"").trim()===sill);
+        if(!gRow) return;
+
+        const party = gRow[3] || "Unknown";
+        const lot = parseFloat((gRow[6]||"").replace(/,/g,'')) || 0;
+        const rollingTotal = sillMap[sill];
+
+        const diff = rollingTotal - lot;
+        const percent = lot>0 ? ((diff/lot)*100) : 0;
+
+        rows.push({
+            sill,
+            party,
+            lot,
+            rolling: rollingTotal,
+            diff,
+            percent
+        });
+    });
+
+    // Percent অনুযায়ী sort (সবচেয়ে বেশি loss উপরে)
+    rows.sort((a,b)=>a.percent - b.percent);
+
+    let reply = `📊 ${monthName.toUpperCase()} ROLLING INSPECTION\n`;
+    reply += "══════════════════════════════════════\n\n";
+
+    rows.forEach((r,i)=>{
+
+        const diffSign = r.diff>=0 ? "+" : "";
+        const percentSign = r.percent>=0 ? "+" : "";
+
+        reply += `${i+1}. ${r.sill} | ${r.party} | ${r.lot}→${r.rolling} | ${diffSign}${r.diff} (${percentSign}${r.percent.toFixed(2)}%)\n`;
+
+        if(i !== rows.length-1)
+            reply += "══════════════════════════════════════\n";
+    });
+
+    reply += "\n\n══════════════════════════════════════";
+
+    return res.json({reply});
+}
 
 // ===== SMART DIRECT SEARCH (Original) =====
 const secDetect=(q)=>{
