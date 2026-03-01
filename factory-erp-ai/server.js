@@ -304,7 +304,45 @@ if(lotMatch && !q.includes("sill")){
 📊 ${diff>=0?"Extra":"Short"}: ${Math.abs(diff).toLocaleString()} yds`
     });
 }
+// ===== SMART MONTH + DYEING (e.g. feb dyeing / march dyeing) =====
 
+const monthOnlyMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
+
+if(monthOnlyMatch && q.includes("dyeing")){
+
+    const monthName = monthOnlyMatch[1];
+    const monthIndex = moment().month(monthName).month(); // 0-11
+
+    const filterByMonth = (rows, idx) => 
+        rows.reduce((acc, r) => {
+            const d = normalizeSheetDate(r[0]);
+            const m = moment(d, "DD-MMM-YYYY", true);
+            if(m.isValid() && m.month() === monthIndex){
+                return acc + (parseFloat((r[idx]||"").replace(/,/g,'')) || 0);
+            }
+            return acc;
+        }, 0);
+
+    const cpbTotal = filterByMonth(cpb,6);
+    const jetTotal = filterByMonth(jet,6);
+    const jiggerTotal = filterByMonth(jig,7);
+
+    const grandTotal = cpbTotal + jetTotal + jiggerTotal;
+
+    if(grandTotal === 0){
+        return res.json({reply:`📅 ${monthName.toUpperCase()} মাসে কোনো Dyeing ডাটা পাওয়া যায়নি ওস্তাদ।`});
+    }
+
+    return res.json({
+        reply:`🎨 **${monthName.toUpperCase()} Dyeing Report**
+━━━━━━━━━━━━━━━━
+🔹 CPB: ${cpbTotal.toLocaleString()} yds
+🔹 Jet: ${jetTotal.toLocaleString()} yds
+🔹 Jigger: ${jiggerTotal.toLocaleString()} yds
+━━━━━━━━━━━━━━━━
+📍 **Total Dyeing: ${grandTotal.toLocaleString()} yds**`
+    });
+}
 // ===== OLD MONTHLY NAME SEARCH (তোমার পুরাতনটা থাকবে) =====
 const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
 
