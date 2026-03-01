@@ -34,39 +34,72 @@ async function fetchSheet(gid) {
     }
 }
 
-const clean = s => (s || "").replace(/\s+/g,'').toLowerCase();
-
 function normalizeSheetDate(value){
     if(!value) return "";
     value=value.toString().trim();
+
     if(!isNaN(value) && Number(value)>40000)
         return moment("1899-12-30").add(Number(value),'days').format("DD-MMM-YYYY");
 
-    const formats=["DD-MMM-YYYY","D-MMM-YYYY","DD/MM/YYYY","D/M/YYYY","YYYY-MM-DD","DD-MMM-YY","D-MMM-YY","DD-MMM-YYYY HH:mm:ss"];
+    const formats=[
+        "DD-MMM-YYYY","D-MMM-YYYY","DD/MM/YYYY",
+        "D/M/YYYY","YYYY-MM-DD",
+        "DD-MMM-YY","D-MMM-YY","DD-MMM-YYYY HH:mm:ss"
+    ];
+
     const m=moment(value,formats,true);
     if(m.isValid()) return m.format("DD-MMM-YYYY");
+
     return value.toUpperCase();
 }
 
 function getParsedDate(q){
-    if(q.includes("today")||q.includes("aj")) return moment().format("DD-MMM-YYYY");
-    if(q.includes("yesterday")||q.includes("kal")) return moment().subtract(1,'days').format("DD-MMM-YYYY");
-    if(q.includes("porshu")) return moment().subtract(2,'days').format("DD-MMM-YYYY");
+    if(q.includes("today")||q.includes("aj"))
+        return moment().format("DD-MMM-YYYY");
+
+    if(q.includes("yesterday")||q.includes("kal"))
+        return moment().subtract(1,'days').format("DD-MMM-YYYY");
+
+    if(q.includes("porshu"))
+        return moment().subtract(2,'days').format("DD-MMM-YYYY");
 
     const match=q.match(/(\d+)\s*([a-z]+)/);
     if(!match) return null;
 
     let year=moment().year();
-    if(moment(`${match[1]} ${match[2]} ${year}`,"D MMM YYYY").isAfter(moment())) year--;
-    return moment(`${match[1]} ${match[2]} ${year}`,"D MMM YYYY").format("DD-MMM-YYYY");
-}
+    if(moment(`${match[1]} ${match[2]} ${year}`,"D MMM YYYY").isAfter(moment()))
+        year--;
 
+    return moment(`${match[1]} ${match[2]} ${year}`,"D MMM YYYY")
+        .format("DD-MMM-YYYY");
+}
 // ================= ASK =================
 router.post("/ask", async (req,res)=>{
 
 const q=(req.body.question||"").toLowerCase().trim();
+
+// NEW: total / totall detect
+const isTotalQuery = /\btotall?\b/.test(q);
+
+// NEW: smart month map (short + full)
+const monthMap = {
+    jan:0, january:0,
+    feb:1, february:1,
+    mar:2, march:2,
+    apr:3, april:3,
+    may:4,
+    jun:5, june:5,
+    jul:6, july:6,
+    aug:7, august:7,
+    sep:8, september:8,
+    oct:9, october:9,
+    nov:10, november:10,
+    dec:11, december:11
+};
+
 const sheets=await Promise.all(Object.values(GID_MAP).map(fetchSheet));
 const [grey,sing,marc,cpb,jet,jig,roll]=sheets;
+
 const getRollingBySill=(sill)=>{
 return roll.reduce((a,r)=>(
 (r[1]||"").trim()===sill
@@ -75,8 +108,7 @@ return roll.reduce((a,r)=>(
 ),0);
 };
 
-/* ================= NEW AI FEATURES START ================= */
-// ===== SMART PARTY SEARCH (ANY WORD MATCH + LAST 15) =====
+// ================= SMART PARTY SEARCH =================
 function normalizeName(str){
     return (str||"").toLowerCase().replace(/[\s.\-]/g,'').trim();
 }
@@ -101,8 +133,6 @@ if(!q.match(/\d/) && q.length>=2){
 ━━━━━━━━━━━━━━━━\n`;
 
         last15.forEach(r=>{
-            let sill=r[2]||"N/A";
-            let quality=r[4]||"N/A";
             let lot=parseFloat((r[6]||"").replace(/,/g,''))||0;
             let rolling=getRollingBySill((r[2]||"").trim());
             let diff=rolling-lot;
@@ -118,61 +148,7 @@ if(!q.match(/\d/) && q.length>=2){
         return res.json({reply});
     }
 }
-// PARTY ONLY
-let partyRows=grey.filter(r=>(r[3]||"").toLowerCase()===q);
-if(partyRows.length && !q.match(/\d/)){
-    let total=0,reply=`🏷️ Party: ${q.toUpperCase()}\n━━━━━━━━━━━━━━━━\n`;
-    partyRows.forEach(r=>{
-        let lot=parseFloat((r[6]||"").replace(/,/g,''))||0;
-        total+=lot;
-        reply+=`🔹 Sill ${r[2]} | ${r[4]} | ${lot.toLocaleString()} yds\n`;
-    });
-    reply+=`\n📊 Total Lot: ${total.toLocaleString()} yds`;
-    return res.json({reply});
-}
-
-// PARTY + DATE / SECTION
-const partyWord=q.split(" ")[0];
-if(grey.some(r=>(r[3]||"").toLowerCase()===partyWord)&&q.includes(" ")){
-    const dateInput=getParsedDate(q);
-    const sections={singing:sing,marcerise:marc,cpb:cpb,jet:jet,jigger:jig,rolling:roll};
-    const sectionKey=Object.keys(sections).find(s=>q.includes(s));
-
-    let total=0,reply=`🏷️ ${partyWord.toUpperCase()} Production\n━━━━━━━━━━━━━━━━\n`;
-
-    for(const key in sections){
-        if(sectionKey&&key!==sectionKey)continue;
-        let vIdx=(key==="singing"||key==="marcerise")?8:(key==="jet"||key==="cpb"?6:7);
-
-        sections[key].forEach(r=>{
-            if(dateInput && normalizeSheetDate(r[0])!==normalizeSheetDate(dateInput))return;
-            if((r[1]||"").toLowerCase()!==partyWord)return;
-            let val=parseFloat((r[vIdx]||"").replace(/,/g,''))||0;
-            if(val>0){ total+=val; reply+=`🔹 ${key.toUpperCase()} Sill ${r[1]}: ${val.toLocaleString()} yds\n`; }
-        });
-    }
-    if(total>0){ reply+=`\n📊 Total: ${total.toLocaleString()} yds`; return res.json({reply}); }
-}
-
-// TOP PRODUCTION
-if(q.includes("top")){
-    const dateInput=getParsedDate(q)||moment().format("DD-MMM-YYYY");
-    let partyTotals={};
-    const add=(rows,idx)=>rows.forEach(r=>{
-        if(normalizeSheetDate(r[0])!==normalizeSheetDate(dateInput))return;
-        let p=r[1]; let v=parseFloat((r[idx]||"").replace(/,/g,''))||0;
-        if(p&&v)partyTotals[p]=(partyTotals[p]||0)+v;
-    });
-    add(cpb,6); add(jet,6); add(jig,7);
-    let sorted=Object.entries(partyTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    if(sorted.length){
-        let reply=`🏆 Top Production (${dateInput})\n━━━━━━━━━━━━━━━━\n`;
-        sorted.forEach(([p,v],i)=>reply+=`${i+1}. ${p.toUpperCase()} — ${v.toLocaleString()} yds\n`);
-        return res.json({reply});
-    }
-}
-
-/* ================= ORIGINAL CODE CONTINUES ================= */
+   /* ================= ORIGINAL CODE CONTINUES ================= */
 
 // ===== DATE SEARCH =====
 const dateInput=getParsedDate(q);
@@ -216,16 +192,32 @@ Object.keys(sillMap).forEach(s=>{
 });
 
 if(details.length)
-return res.json({reply:`📅 **${targetKey.toUpperCase()} - ${dateInput}**\n━━━━━━━━━━━━━━━━\n${details.join("\n")}\n\n📍 **Total: ${total.toLocaleString()} yds**`});
+return res.json({reply:`📅 **${targetKey.toUpperCase()} - ${dateInput}**
+━━━━━━━━━━━━━━━━
+${details.join("\n")}
+
+📍 **Total: ${total.toLocaleString()} yds**`});
 
 return res.json({reply:`📅 ${dateInput} এ ${targetKey} সেকশনে কোনো ডাটা পাওয়া যায়নি।`});
 }
 
 // daily summary
-const dSum=(rows,idx)=>rows.reduce((acc,r)=>normalizeSheetDate(r[0])===normalizeSheetDate(dateInput)?acc+(parseFloat((r[idx]||"").replace(/,/g,''))||0):acc,0);
+const dSum=(rows,idx)=>rows.reduce((acc,r)=>
+normalizeSheetDate(r[0])===normalizeSheetDate(dateInput)
+?acc+(parseFloat((r[idx]||"").replace(/,/g,''))||0)
+:acc,0);
+
 const cVal=dSum(cpb,6),jVal=dSum(jet,6),jgVal=dSum(jig,7);
 
-return res.json({reply:`📅 **Daily Summary: ${dateInput}**\n━━━━━━━━━━━━━━━━\n🔹 Singing: ${dSum(sing,8).toLocaleString()} yds\n🔹 Marcerise: ${dSum(marc,8).toLocaleString()} yds\n🔹 CPB: ${cVal.toLocaleString()} yds\n🔹 Jet: ${jVal.toLocaleString()} yds\n🔹 Jigger: ${jgVal.toLocaleString()} yds\n📍 **Total Dyeing: ${(cVal+jVal+jgVal).toLocaleString()} yds\n✅ **Rolling: ${dSum(roll,7).toLocaleString()} yds`});
+return res.json({reply:`📅 **Daily Summary: ${dateInput}**
+━━━━━━━━━━━━━━━━
+🔹 Singing: ${dSum(sing,8).toLocaleString()} yds
+🔹 Marcerise: ${dSum(marc,8).toLocaleString()} yds
+🔹 CPB: ${cVal.toLocaleString()} yds
+🔹 Jet: ${jVal.toLocaleString()} yds
+🔹 Jigger: ${jgVal.toLocaleString()} yds
+📍 **Total Dyeing: ${(cVal+jVal+jgVal).toLocaleString()} yds
+✅ Rolling: ${dSum(roll,7).toLocaleString()} yds`});
 }
 
 
@@ -237,119 +229,140 @@ const sill=sMatch[1];
 const gRow=grey.find(r=>(r[2]||"").trim()===sill);
 if(!gRow) return res.json({reply:`Sill ${sill} পাওয়া যায়নি ওস্তাদ।`});
 
-const getVal=(rows,s,sIdx,vIdx)=>rows.reduce((a,r)=>r[sIdx]===s?a+(parseFloat((r[vIdx]||"").replace(/,/g,''))||0):a,0);
+const getVal=(rows,s,sIdx,vIdx)=>
+rows.reduce((a,r)=>r[sIdx]===s
+?a+(parseFloat((r[vIdx]||"").replace(/,/g,''))||0)
+:a,0);
 
-const data={sing:getVal(sing,sill,1,8),marc:getVal(marc,sill,1,8),cpb:getVal(cpb,sill,1,6),jet:getVal(jet,sill,1,6),jig:getVal(jig,sill,1,7),roll:getVal(roll,sill,1,7)};
+const data={
+sing:getVal(sing,sill,1,8),
+marc:getVal(marc,sill,1,8),
+cpb:getVal(cpb,sill,1,6),
+jet:getVal(jet,sill,1,6),
+jig:getVal(jig,sill,1,7),
+roll:getVal(roll,sill,1,7)
+};
+
 const lotSize=parseFloat((gRow[6]||"").replace(/,/g,''))||0;
 const diff=lotSize-data.roll;
 
-return res.json({reply:`📊 **Report: Sill ${sill}**\n━━━━━━━━━━━━━━━━\n👤 **Party:** ${gRow[3]}\n📜 **Quality:** ${gRow[4]}\n📦 **Lot Size:** ${lotSize.toLocaleString()} yds\n\n⚙️ **Process Details:**\n🔹 Singing: ${data.sing.toLocaleString()} yds\n🔹 Marcerise: ${data.marc.toLocaleString()} yds\n\n🎨 **Dyeing Section:**\n🔹 CPB: ${data.cpb.toLocaleString()} yds\n🔹 Jet: ${data.jet.toLocaleString()} yds\n🔹 Jigger: ${data.jig.toLocaleString()} yds\n📍 **Total Dyeing: ${(data.cpb+data.jet+data.jig).toLocaleString()} yds\n\n✅ **Rolling: ${data.roll.toLocaleString()} yds\n━━━━━━━━━━━━━━━━\n📊 **${diff<=0?"Extra":"Short"}: ${Math.abs(diff).toLocaleString()} yds**`});
-}
-// ===== MONTHLY NAME SEARCH (e.g. feb total / feb dyeing) =====
+return res.json({reply:`📊 **Report: Sill ${sill}**
+━━━━━━━━━━━━━━━━
+👤 Party: ${gRow[3]}
+📜 Quality: ${gRow[4]}
+📦 Lot Size: ${lotSize.toLocaleString()} yds
 
+⚙️ Process Details:
+🔹 Singing: ${data.sing.toLocaleString()} yds
+🔹 Marcerise: ${data.marc.toLocaleString()} yds
+
+🎨 Dyeing Section:
+🔹 CPB: ${data.cpb.toLocaleString()} yds
+🔹 Jet: ${data.jet.toLocaleString()} yds
+🔹 Jigger: ${data.jig.toLocaleString()} yds
+📍 Total Dyeing: ${(data.cpb+data.jet+data.jig).toLocaleString()} yds
+
+✅ Rolling: ${data.roll.toLocaleString()} yds
+━━━━━━━━━━━━━━━━
+📊 ${diff<=0?"Extra":"Short"}: ${Math.abs(diff).toLocaleString()} yds`});
+}
+
+
+// ===== OLD MONTHLY NAME SEARCH (তোমার পুরাতনটা থাকবে) =====
 const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
 
 if(monthMatch && q.includes("total")){
 
     const monthName = monthMatch[1];
-    const monthIndex = moment().month(monthName).month(); // 0-11
+    const monthIndex = moment().month(monthName).month();
 
-    const filterByMonth = (rows, idx) => 
-        rows.reduce((acc, r) => {
-            const d = normalizeSheetDate(r[0]);
-            const m = moment(d, "DD-MMM-YYYY", true);
-            if(m.isValid() && m.month() === monthIndex){
-                return acc + (parseFloat((r[idx]||"").replace(/,/g,'')) || 0);
-            }
-            return acc;
-        }, 0);
+    const filterByMonth=(rows,idx)=>
+    rows.reduce((acc,r)=>{
+        const d=normalizeSheetDate(r[0]);
+        const m=moment(d,"DD-MMM-YYYY",true);
+        if(m.isValid()&&m.month()===monthIndex)
+            return acc+(parseFloat((r[idx]||"").replace(/,/g,''))||0);
+        return acc;
+    },0);
 
-    const totals = {
-        s: filterByMonth(sing,8),
-        m: filterByMonth(marc,8),
-        c: filterByMonth(cpb,6),
-        j: filterByMonth(jet,6),
-        jg: filterByMonth(jig,7),
-        r: filterByMonth(roll,7)
+    const totals={
+        s:filterByMonth(sing,8),
+        m:filterByMonth(marc,8),
+        c:filterByMonth(cpb,6),
+        j:filterByMonth(jet,6),
+        jg:filterByMonth(jig,7),
+        r:filterByMonth(roll,7)
     };
 
     if(q.includes("dyeing")){
-        return res.json({
-            reply:`📅 **${monthName.toUpperCase()} Dyeing Report**
+        return res.json({reply:`📅 ${monthName.toUpperCase()} Dyeing Report
 ━━━━━━━━━━━━━━━━
 🔹 CPB: ${totals.c.toLocaleString()} yds
 🔹 Jet: ${totals.j.toLocaleString()} yds
 🔹 Jigger: ${totals.jg.toLocaleString()} yds
-📍 **Total Dyeing: ${(totals.c+totals.j+totals.jg).toLocaleString()} yds**`
-        });
+📍 Total Dyeing: ${(totals.c+totals.j+totals.jg).toLocaleString()} yds`});
     }
 
-    return res.json({
-        reply:`📅 **${monthName.toUpperCase()} Monthly Report**
+    return res.json({reply:`📅 ${monthName.toUpperCase()} Monthly Report
 ━━━━━━━━━━━━━━━━
 🔹 Singing: ${totals.s.toLocaleString()} yds
 🔹 Marcerise: ${totals.m.toLocaleString()} yds
 🔹 CPB: ${totals.c.toLocaleString()} yds
 🔹 Jet: ${totals.j.toLocaleString()} yds
 🔹 Jigger: ${totals.jg.toLocaleString()} yds
-✅ **Total Rolling: ${totals.r.toLocaleString()} yds**`
-    });
+✅ Total Rolling: ${totals.r.toLocaleString()} yds`});
 }
-// ===== UNIVERSAL PER DAY REPORT =====
 
+
+// ===== UNIVERSAL PER DAY REPORT =====
 if(q.includes("per day")){
 
-    const sectionMap = {
-        singing: {rows: sing, idx: 8},
-        marcerise: {rows: marc, idx: 8},
-        cpb: {rows: cpb, idx: 6},
-        jet: {rows: jet, idx: 6},
-        jigger: {rows: jig, idx: 7},
-        rolling: {rows: roll, idx: 7}
-    };
+const sectionMap={
+singing:{rows:sing,idx:8},
+marcerise:{rows:marc,idx:8},
+cpb:{rows:cpb,idx:6},
+jet:{rows:jet,idx:6},
+jigger:{rows:jig,idx:7},
+rolling:{rows:roll,idx:7}
+};
 
-    const sectionKey = Object.keys(sectionMap).find(s => q.includes(s));
+const sectionKey=Object.keys(sectionMap).find(s=>q.includes(s));
 
-    if(sectionKey){
+if(sectionKey){
 
-        const {rows, idx} = sectionMap[sectionKey];
+const {rows,idx}=sectionMap[sectionKey];
+let dayMap={};
 
-        let dayMap = {};
+rows.forEach(r=>{
+const date=normalizeSheetDate(r[0]);
+const val=parseFloat((r[idx]||"").replace(/,/g,''))||0;
+if(!date||val<=0)return;
+if(!dayMap[date])dayMap[date]=0;
+dayMap[date]+=val;
+});
 
-        rows.forEach(r=>{
-            const date = normalizeSheetDate(r[0]);
-            const val = parseFloat((r[idx]||"").replace(/,/g,'')) || 0;
+const sortedDates=Object.keys(dayMap)
+.sort((a,b)=>moment(a,"DD-MMM-YYYY")-moment(b,"DD-MMM-YYYY"));
 
-            if(!date || val <= 0) return;
+let total=0;
+let reply=`📅 ${sectionKey.toUpperCase()} Per Day Report
+━━━━━━━━━━━━━━━━
+`;
 
-            if(!dayMap[date]) dayMap[date] = 0;
+sortedDates.forEach((d,i)=>{
+total+=dayMap[d];
+reply+=`${i+1}. ${d} — ${dayMap[d].toLocaleString()} yds\n`;
+});
 
-            dayMap[date] += val;
-        });
+reply+=`\n📊 Total: ${total.toLocaleString()} yds`;
 
-        const sortedDates = Object.keys(dayMap)
-            .sort((a,b)=>moment(a,"DD-MMM-YYYY") - moment(b,"DD-MMM-YYYY"));
-
-        if(!sortedDates.length)
-            return res.json({reply:`${sectionKey.toUpperCase()} এর কোনো ডাটা পাওয়া যায়নি।`});
-
-        let total = 0;
-        let reply = `📅 ${sectionKey.toUpperCase()} Per Day Report\n━━━━━━━━━━━━━━━━\n`;
-
-        sortedDates.forEach((d,i)=>{
-            total += dayMap[d];
-            reply += `${i+1}. ${d} — ${dayMap[d].toLocaleString()} yds\n`;
-        });
-
-        reply += `\n📊 Total: ${total.toLocaleString()} yds`;
-
-        return res.json({reply});
-    }
+return res.json({reply});
 }
-// ===== GRAND TOTAL / MONTHLY BREAKDOWN =====
+} 
+     // ===== NEW GRAND TOTAL / MONTHLY BREAKDOWN =====
 if(isTotalQuery){
 
-    // ===== If only dyeing =====
+    // ===== If totall dyeing → month wise breakdown =====
     if(q.includes("dyeing")){
 
         const sectionMap = {
@@ -402,9 +415,11 @@ if(isTotalQuery){
         return res.json({reply});
     }
 
-    // ===== Full Grand Total (আগের মতই থাকবে) =====
+    // ===== Full Grand Total =====
     const tSum = (rows,idx)=>
-        rows.reduce((a,r)=>a+(parseFloat((r[idx]||"").replace(/,/g,''))||0),0);
+        rows.reduce((a,r)=>
+            a+(parseFloat((r[idx]||"").replace(/,/g,''))||0)
+        ,0);
 
     const t = {
         s: tSum(sing,8),
@@ -427,7 +442,8 @@ if(isTotalQuery){
     });
 }
 
-// ===== SMART DIRECT SEARCH =====
+
+// ===== SMART DIRECT SEARCH (Original) =====
 const secDetect=(q)=>{
 if(/cpb/.test(q)) return "cpb";
 if(/\bjet\b/.test(q)) return "jet";
@@ -442,16 +458,24 @@ const sectionKey=secDetect(q);
 
 if(sectionKey){
 
-const sectionMap={singing:sing,marcerise:marc,cpb:cpb,jet:jet,jigger:jig,rolling:roll};
+const sectionMap={
+singing:sing,
+marcerise:marc,
+cpb:cpb,
+jet:jet,
+jigger:jig,
+rolling:roll
+};
+
 const rows=sectionMap[sectionKey];
 
 let sMatch=q.match(/\b\d{3,4}\b/);
+
 if(sMatch){
 
 let sill=sMatch[0];
 let g=grey.find(r=>(r[2]||"").trim()===sill);
 let party=g?g[3]:"Unknown";
-let lot=g?parseFloat((g[6]||"").replace(/,/g,''))||0:0;
 
 let total=0,lines=[];
 
@@ -478,7 +502,10 @@ ${lines.join("\n")}
 
 }
 
+
+// ===== FINAL FALLBACK =====
 res.json({reply:"Sill নম্বর বা তারিখ (e.g. 3 feb jet / kal cpb) লিখে সার্চ দিন ওস্তাদ!"});
+
 });
 
-module.exports = router;    
+module.exports = router;       
