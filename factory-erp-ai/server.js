@@ -245,7 +245,56 @@ const diff=lotSize-data.roll;
 
 return res.json({reply:`📊 **Report: Sill ${sill}**\n━━━━━━━━━━━━━━━━\n👤 **Party:** ${gRow[3]}\n📜 **Quality:** ${gRow[4]}\n📦 **Lot Size:** ${lotSize.toLocaleString()} yds\n\n⚙️ **Process Details:**\n🔹 Singing: ${data.sing.toLocaleString()} yds\n🔹 Marcerise: ${data.marc.toLocaleString()} yds\n\n🎨 **Dyeing Section:**\n🔹 CPB: ${data.cpb.toLocaleString()} yds\n🔹 Jet: ${data.jet.toLocaleString()} yds\n🔹 Jigger: ${data.jig.toLocaleString()} yds\n📍 **Total Dyeing: ${(data.cpb+data.jet+data.jig).toLocaleString()} yds\n\n✅ **Rolling: ${data.roll.toLocaleString()} yds\n━━━━━━━━━━━━━━━━\n📊 **${diff<=0?"Extra":"Short"}: ${Math.abs(diff).toLocaleString()} yds**`});
 }
+// ===== MONTHLY NAME SEARCH (e.g. feb total / feb dyeing) =====
 
+const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
+
+if(monthMatch && q.includes("total")){
+
+    const monthName = monthMatch[1];
+    const monthIndex = moment().month(monthName).month(); // 0-11
+
+    const filterByMonth = (rows, idx) => 
+        rows.reduce((acc, r) => {
+            const d = normalizeSheetDate(r[0]);
+            const m = moment(d, "DD-MMM-YYYY", true);
+            if(m.isValid() && m.month() === monthIndex){
+                return acc + (parseFloat((r[idx]||"").replace(/,/g,'')) || 0);
+            }
+            return acc;
+        }, 0);
+
+    const totals = {
+        s: filterByMonth(sing,8),
+        m: filterByMonth(marc,8),
+        c: filterByMonth(cpb,6),
+        j: filterByMonth(jet,6),
+        jg: filterByMonth(jig,7),
+        r: filterByMonth(roll,7)
+    };
+
+    if(q.includes("dyeing")){
+        return res.json({
+            reply:`📅 **${monthName.toUpperCase()} Dyeing Report**
+━━━━━━━━━━━━━━━━
+🔹 CPB: ${totals.c.toLocaleString()} yds
+🔹 Jet: ${totals.j.toLocaleString()} yds
+🔹 Jigger: ${totals.jg.toLocaleString()} yds
+📍 **Total Dyeing: ${(totals.c+totals.j+totals.jg).toLocaleString()} yds**`
+        });
+    }
+
+    return res.json({
+        reply:`📅 **${monthName.toUpperCase()} Monthly Report**
+━━━━━━━━━━━━━━━━
+🔹 Singing: ${totals.s.toLocaleString()} yds
+🔹 Marcerise: ${totals.m.toLocaleString()} yds
+🔹 CPB: ${totals.c.toLocaleString()} yds
+🔹 Jet: ${totals.j.toLocaleString()} yds
+🔹 Jigger: ${totals.jg.toLocaleString()} yds
+✅ **Total Rolling: ${totals.r.toLocaleString()} yds**`
+    });
+}
 
 // ===== TOTAL =====
 if(q.includes("total")){
