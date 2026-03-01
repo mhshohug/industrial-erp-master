@@ -389,51 +389,72 @@ if(monthMatch && q.includes("total")){
 }
 
 
-// ===== UNIVERSAL PER DAY REPORT =====
+// ===== UNIVERSAL PER DAY REPORT (SMART MONTH SUPPORT) =====
+
 if(q.includes("per day")){
 
-const sectionMap={
-singing:{rows:sing,idx:8},
-marcerise:{rows:marc,idx:8},
-cpb:{rows:cpb,idx:6},
-jet:{rows:jet,idx:6},
-jigger:{rows:jig,idx:7},
-rolling:{rows:roll,idx:7}
-};
+    const sectionMap = {
+        singing: {rows: sing, idx: 8},
+        marcerise: {rows: marc, idx: 8},
+        cpb: {rows: cpb, idx: 6},
+        jet: {rows: jet, idx: 6},
+        jigger: {rows: jig, idx: 7},
+        rolling: {rows: roll, idx: 7}
+    };
 
-const sectionKey=Object.keys(sectionMap).find(s=>q.includes(s));
+    const sectionKey = Object.keys(sectionMap).find(s => q.includes(s));
+    const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
 
-if(sectionKey){
+    if(sectionKey){
 
-const {rows,idx}=sectionMap[sectionKey];
-let dayMap={};
+        const {rows, idx} = sectionMap[sectionKey];
 
-rows.forEach(r=>{
-const date=normalizeSheetDate(r[0]);
-const val=parseFloat((r[idx]||"").replace(/,/g,''))||0;
-if(!date||val<=0)return;
-if(!dayMap[date])dayMap[date]=0;
-dayMap[date]+=val;
-});
+        let dayMap = {};
+        let monthIndex = null;
 
-const sortedDates=Object.keys(dayMap)
-.sort((a,b)=>moment(a,"DD-MMM-YYYY")-moment(b,"DD-MMM-YYYY"));
+        if(monthMatch){
+            monthIndex = moment().month(monthMatch[1]).month();
+        }
 
-let total=0;
-let reply=`📅 ${sectionKey.toUpperCase()} Per Day Report
-━━━━━━━━━━━━━━━━
-`;
+        rows.forEach(r=>{
+            const date = normalizeSheetDate(r[0]);
+            const m = moment(date,"DD-MMM-YYYY",true);
+            const val = parseFloat((r[idx]||"").replace(/,/g,'')) || 0;
 
-sortedDates.forEach((d,i)=>{
-total+=dayMap[d];
-reply+=`${i+1}. ${d} — ${dayMap[d].toLocaleString()} yds\n`;
-});
+            if(!m.isValid() || val <= 0) return;
 
-reply+=`\n📊 Total: ${total.toLocaleString()} yds`;
+            // যদি মাস দেওয়া থাকে তাহলে শুধু ওই মাস ফিল্টার হবে
+            if(monthIndex !== null && m.month() !== monthIndex) return;
 
-return res.json({reply});
+            const formattedDate = m.format("DD-MMM-YYYY");
+
+            if(!dayMap[formattedDate]) dayMap[formattedDate] = 0;
+
+            dayMap[formattedDate] += val;
+        });
+
+        const sortedDates = Object.keys(dayMap)
+            .sort((a,b)=>moment(a,"DD-MMM-YYYY") - moment(b,"DD-MMM-YYYY"));
+
+        if(!sortedDates.length)
+            return res.json({reply:`ডাটা পাওয়া যায়নি ওস্তাদ।`});
+
+        let total = 0;
+        let titleMonth = monthMatch ? monthMatch[1].toUpperCase()+" " : "";
+
+        let reply = `📅 ${titleMonth}${sectionKey.toUpperCase()} Per Day Report\n━━━━━━━━━━━━━━━━\n`;
+
+        sortedDates.forEach((d,i)=>{
+            total += dayMap[d];
+            reply += `${i+1}. ${d} — ${dayMap[d].toLocaleString()} yds\n`;
+        });
+
+        reply += `\n📊 Total: ${total.toLocaleString()} yds`;
+
+        return res.json({reply});
+    }
 }
-} 
+
      // ===== NEW GRAND TOTAL / MONTHLY BREAKDOWN =====
 if(isTotalQuery){
 
