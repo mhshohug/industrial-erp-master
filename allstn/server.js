@@ -9,7 +9,7 @@ router.use(express.json());
 router.use(express.static(__dirname));
 
 // ===============================
-// STN SHEETS ONLY (MAIN GID REMOVED)
+// GOOGLE SHEET CONFIG
 // ===============================
 const SHEET_ID = "1Yt4HMt7fzJdlJ-CtdEiEHG2Bntj3CwUdPVpMSJYXPZI";
 
@@ -20,9 +20,8 @@ const STN_GIDS = {
   "4": "1173207402",
   "5": "1462575320"
 };
-
 // ===============================
-// FETCH FUNCTION
+// FETCH SHEET FUNCTION
 // ===============================
 async function fetchSheetByGid(gid) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
@@ -33,7 +32,6 @@ async function fetchSheetByGid(gid) {
       .map(cell => cell.replace(/^"|"$/g, "").trim())
   );
 }
-
 // ===============================
 // ASK ROUTE
 // ===============================
@@ -44,28 +42,21 @@ router.post("/ask", async (req, res) => {
   const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
   const now = new Date();
   const currentMonth = months[now.getMonth()];
-
-  // =====================================================
-  // TOTAL (ALL MACHINE) LOGIC
-  // =====================================================
   if (question.startsWith("total")) {
 
     let monthMatch = question.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
     let selectedMonth = monthMatch ? monthMatch[1] : currentMonth;
 
-    let finalOutput =
-`📊 ${selectedMonth.toUpperCase()} MACHINE WISE REPORT
-━━━━━━━━━━━━━━━━━━
-`;
+    let machineTotals = {};
+    let processTotals = {};
 
-    let allMachineGrandTotal = 0;
-    let combinedHeaderTotals = {};
+    let machineGrandTotal = 0;
+    let processGrandTotal = 0;
 
     for (let stn in STN_GIDS) {
 
       const gid = STN_GIDS[stn];
       const db = await fetchSheetByGid(gid);
-
       if (!db || db.length <= 1) continue;
 
       const headers = db[0];
@@ -82,9 +73,7 @@ router.post("/ask", async (req, res) => {
       const getTotal = (index) =>
         filteredRows.reduce((t,r)=>t+(parseFloat(r[index])||0),0);
 
-      finalOutput += `\n🏭 STN ${stn}\n━━━━━━━━━━━━━━━━━━\n`;
-
-      let machineGrandTotal = 0;
+      let stnTotal = 0;
 
       headers.forEach((h,i)=>{
         if (i === 0) return;
@@ -93,73 +82,56 @@ router.post("/ask", async (req, res) => {
 
         if (total !== 0) {
 
-          machineGrandTotal += total;
-          finalOutput += `${h} : ${total.toLocaleString()}\n`;
+          stnTotal += total;
 
-          if (!combinedHeaderTotals[h])
-            combinedHeaderTotals[h] = 0;
+          if (!processTotals[h])
+            processTotals[h] = 0;
 
-          combinedHeaderTotals[h] += total;
+          processTotals[h] += total;
         }
       });
 
-      finalOutput += `\nMachine Total : ${machineGrandTotal.toLocaleString()}\n`;
-      allMachineGrandTotal += machineGrandTotal;
+      machineTotals[stn] = stnTotal;
+      machineGrandTotal += stnTotal;
     }
 
-    // HEADER WISE TOTAL
-    finalOutput += `\n━━━━━━━━━━━━━━━━━━\n📦 HEADER WISE TOTAL (ALL MACHINE)\n━━━━━━━━━━━━━━━━━━\n`;
+    // ================= FORMAT 2 COLUMN =================
 
-    for (let header in combinedHeaderTotals) {
-      finalOutput += `${header} : ${combinedHeaderTotals[header].toLocaleString()}\n`;
+    const leftTitle = "🏭 Machine Wish";
+    const rightTitle = "⚙ Process Wish";
+
+    const leftLines = [];
+    const rightLines = [];
+
+    for (let stn in machineTotals) {
+      leftLines.push(`☑ STN ${stn} : ${machineTotals[stn].toLocaleString()}`);
     }
-
-    // ALL MACHINE GRAND TOTAL
-    finalOutput += `\n━━━━━━━━━━━━━━━━━━\n🏆 ALL MACHINE GRAND TOTAL\n━━━━━━━━━━━━━━━━━━\n`;
-    finalOutput += `${allMachineGrandTotal.toLocaleString()}\n`;
-
-    // PROCESS TOTAL
-    let processTotals = {};
-    let processGrandTotal = 0;
-
-    for (let header in combinedHeaderTotals) {
-
-      const name = header.toLowerCase();
-      const value = combinedHeaderTotals[header];
-
-      let processName = null;
-
-      if (name.includes("finish")) processName = "Finish";
-      else if (name.includes("dry")) processName = "Dry";
-      else if (name.includes("coating")) processName = "Coating";
-      else processName = "Others";
-
-      if (!processTotals[processName])
-        processTotals[processName] = 0;
-
-      processTotals[processName] += value;
-    }
-
-    finalOutput += `\n━━━━━━━━━━━━━━━━━━\n⚙ PROCESS TOTAL (ALL MACHINE)\n━━━━━━━━━━━━━━━━━━\n`;
+    leftLines.push(`Total = ${machineGrandTotal.toLocaleString()}`);
 
     for (let process in processTotals) {
+      rightLines.push(`☑ ${process} : ${processTotals[process].toLocaleString()}`);
+      processGrandTotal += processTotals[process];
+    }
+    rightLines.push(`Total = ${processGrandTotal.toLocaleString()}`);
 
-      const total = processTotals[process];
+    const maxLines = Math.max(leftLines.length, rightLines.length);
 
-      if (total > 0) {
-        finalOutput += `${process} Total : ${total.toLocaleString()}\n`;
-        processGrandTotal += total;
-      }
+    while (leftLines.length < maxLines) leftLines.push("");
+    while (rightLines.length < maxLines) rightLines.push("");
+
+    let output =
+`📊 ${selectedMonth.toUpperCase()} REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${leftTitle.padEnd(30)} | ${rightTitle}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+
+    for (let i = 0; i < maxLines; i++) {
+      output += `${leftLines[i].padEnd(30)} | ${rightLines[i]}\n`;
     }
 
-    finalOutput += `\nProcess Grand Total : ${processGrandTotal.toLocaleString()}\n`;
-
-    return res.json({ reply: finalOutput });
+    return res.json({ reply: "```" + output + "```" });
   }
-
-  // =====================================================
-  // SINGLE STN REPORT
-  // =====================================================
   const machineMatch = question.match(/stn\s?([1-5])/);
 
   if (machineMatch) {
@@ -204,7 +176,6 @@ router.post("/ask", async (req, res) => {
 
     return res.json({ reply: output });
   }
-
   return res.json({
     reply: "সঠিক কমান্ড লিখুন (total, total feb, stn 1, stn 2 mar)"
   });
