@@ -1,4 +1,3 @@
-
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
@@ -21,6 +20,110 @@ const GID_MAP = {
   jigger: "392149567",
   ex_jigger: "843042263",
   folding: "2051005815",
+};
+
+// ================= HTML WRAPPER ফাংশন =================
+const htmlWrapper = (title, content) => {
+    return `
+    <style>
+        .erp-container {
+            font-family: Arial, sans-serif;
+            max-width: 100%;
+            background: #ffffff;
+            padding: 8px;
+            border-radius: 5px;
+        }
+        .erp-header {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1a202c;
+            background: #e2e8f0;
+            padding: 6px 8px;
+            margin: 0 0 8px 0;
+            border-radius: 4px;
+            border-left: 4px solid #2d3748;
+        }
+        .erp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin: 5px 0;
+            background: white;
+        }
+        .erp-table th {
+            background: #2d3748;
+            color: white;
+            padding: 6px 4px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            border: 1px solid #1a202c;
+        }
+        .erp-table td {
+            padding: 5px 4px;
+            border: 1px solid #cbd5e0;
+            color: #1a202c;
+            background: white;
+        }
+        .erp-table tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+        .erp-table tr:hover td {
+            background: #e6f7ff;
+        }
+        .positive { 
+            color: #0b5e0b; 
+            font-weight: bold; 
+            background: #e6ffe6 !important;
+        }
+        .negative { 
+            color: #b22222; 
+            font-weight: bold;
+            background: #ffe6e6 !important;
+        }
+        .summary-box {
+            background: #edf2f7;
+            padding: 8px;
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            border-left: 4px solid #2d3748;
+            color: #1a202c;
+        }
+        .info-row {
+            background: #f0f4f8;
+            padding: 6px 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #1a202c;
+            border: 1px solid #cbd5e0;
+        }
+        .month-header {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 8px;
+            padding: 5px;
+            background: #edf2f7;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-box {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+    </style>
+    <div class="erp-container">
+        <div class="erp-header">📊 ${title}</div>
+        ${content}
+    </div>
+    `;
 };
 
 function safeNumber(val) {
@@ -285,7 +388,7 @@ function getSillReport(db, inputNumber) {
   });
 }
 /* =========================================================
-   PART 3 – ROUTER START + FORMATTERS
+   PART 3 – ROUTER START + HTML FORMATTERS
 ========================================================= */
 
 router.post("/ask", async (req, res) => {
@@ -304,153 +407,194 @@ router.post("/ask", async (req, res) => {
   keys.forEach((k,i)=> db[k]=results[i]);
 
 
-  /* ===================== FORMATTERS ===================== */
+  /* ===================== HTML FORMATTERS ===================== */
 
-  function formatPerDay(proc,data){
+  function formatPerDayHTML(proc, data) {
+    const today = new Date();
+    const monthName = today.toLocaleString("default", { month: "long" });
+    
+    let rows = '';
+    data.days.forEach(d => {
+      rows += `<tr><td>${String(d.day).padStart(2, '0')}</td><td>${d.qty.toLocaleString()}</td></tr>`;
+    });
 
-    const today=new Date();
-    const monthName=today.toLocaleString("default",{month:"long"});
-    const year=today.getFullYear();
-
-    const lines=data.days.map(d=>
-      `${String(d.day).padStart(2,"0")} ${monthName.slice(0,3)} : ${d.qty.toLocaleString()} yds`
-    ).join("\n");
-
-    return `
-${proc.toUpperCase()} DAILY PRODUCTION
-Month: ${monthName} ${year}
-----------------------------------
-${lines}
-----------------------------------
-Highest: ${data.highest.toLocaleString()} yds
-Lowest : ${data.lowest.toLocaleString()} yds
-----------------------------------
-TOTAL  : ${data.total.toLocaleString()} yds
-`;
+    return htmlWrapper(`${proc.toUpperCase()} Daily Production - ${monthName}`, `
+      <table class="erp-table">
+        <tr><th>Date</th><th>Yards</th></tr>
+        ${rows}
+      </table>
+      <div class="summary-box">
+        <span class="stat-box">📈 Highest: ${data.highest.toLocaleString()}</span>
+        <span class="stat-box">📉 Lowest: ${data.lowest.toLocaleString()}</span>
+        <span class="stat-box">📍 Total: ${data.total.toLocaleString()}</span>
+      </div>
+    `);
   }
 
-
-  function formatFactorySummary(data){
-    return `
-FACTORY SUMMARY
-----------------------------------
-PROCESS
-Singing   : ${data.process.s.toLocaleString()}
-Mercerise : ${data.process.m.toLocaleString()}
-Bleach    : ${data.process.b.toLocaleString()}
-
-DYEING
-CPB       : ${data.dyeing.c.toLocaleString()}
-Jigger    : ${data.dyeing.j.toLocaleString()}
-Ex-Jigger : ${data.dyeing.ex.toLocaleString()}
-Napthol   : ${data.dyeing.n.toLocaleString()}
-
-Folding   : ${data.folding.toLocaleString()}
-----------------------------------
-TOTAL DYEING : ${data.dyeTotal.toLocaleString()} yds
-`;
+  function formatFactorySummaryHTML(data) {
+    return htmlWrapper(`Factory Summary`, `
+      <table class="erp-table">
+        <tr><th colspan="2">PROCESS</th></tr>
+        <tr><td>Singing</td><td>${data.process.s.toLocaleString()}</td></tr>
+        <tr><td>Mercerise</td><td>${data.process.m.toLocaleString()}</td></tr>
+        <tr><td>Bleach</td><td>${data.process.b.toLocaleString()}</td></tr>
+        
+        <tr><th colspan="2">DYEING</th></tr>
+        <tr><td>CPB</td><td>${data.dyeing.c.toLocaleString()}</td></tr>
+        <tr><td>Jigger</td><td>${data.dyeing.j.toLocaleString()}</td></tr>
+        <tr><td>Ex-Jigger</td><td>${data.dyeing.ex.toLocaleString()}</td></tr>
+        <tr><td>Napthol</td><td>${data.dyeing.n.toLocaleString()}</td></tr>
+        
+        <tr><th colspan="2">FINISHING</th></tr>
+        <tr><td>Folding</td><td>${data.folding.toLocaleString()}</td></tr>
+      </table>
+      <div class="summary-box">📍 Total Dyeing: ${data.dyeTotal.toLocaleString()} yds</div>
+    `);
   }
 
-
-  function formatDateReport(data){
-    return `
-DAILY REPORT
-----------------------------------
-PROCESS
-Singing   : ${data.process.s.toLocaleString()}
-Mercerise : ${data.process.m.toLocaleString()}
-Bleach    : ${data.process.b.toLocaleString()}
-
-DYEING
-CPB       : ${data.dyeing.c.toLocaleString()}
-Jigger    : ${data.dyeing.j.toLocaleString()}
-Ex-Jigger : ${data.dyeing.ex.toLocaleString()}
-Napthol   : ${data.dyeing.n.toLocaleString()}
-
-Folding   : ${data.folding.toLocaleString()}
-----------------------------------
-TOTAL : ${data.total.toLocaleString()} yds
-`;
+  function formatDateReportHTML(data, dateStr) {
+    return htmlWrapper(`Daily Report - ${dateStr}`, `
+      <table class="erp-table">
+        <tr><th colspan="2">PROCESS</th></tr>
+        <tr><td>Singing</td><td>${data.process.s.toLocaleString()}</td></tr>
+        <tr><td>Mercerise</td><td>${data.process.m.toLocaleString()}</td></tr>
+        <tr><td>Bleach</td><td>${data.process.b.toLocaleString()}</td></tr>
+        
+        <tr><th colspan="2">DYEING</th></tr>
+        <tr><td>CPB</td><td>${data.dyeing.c.toLocaleString()}</td></tr>
+        <tr><td>Jigger</td><td>${data.dyeing.j.toLocaleString()}</td></tr>
+        <tr><td>Ex-Jigger</td><td>${data.dyeing.ex.toLocaleString()}</td></tr>
+        <tr><td>Napthol</td><td>${data.dyeing.n.toLocaleString()}</td></tr>
+        
+        <tr><th colspan="2">FINISHING</th></tr>
+        <tr><td>Folding</td><td>${data.folding.toLocaleString()}</td></tr>
+      </table>
+      <div class="summary-box">📍 Total: ${data.total.toLocaleString()} yds</div>
+    `);
   }
 
+  function formatPartySummaryHTML(data) {
+    const completion = data.totalLot > 0 ? ((data.totalDye / data.totalLot) * 100).toFixed(1) : 0;
+    
+    let rows = '';
+    data.reports.forEach(r => {
+      const status = r.lot - r.dyeTotal <= 0 ? 'positive' : 'negative';
+      const statusText = r.lot - r.dyeTotal <= 0 ? 'EXTRA' : 'SHORT';
+      
+      rows += `
+      <tr>
+        <td>${r.sill}</td>
+        <td>${r.quality}</td>
+        <td>${r.lot.toLocaleString()}</td>
+        <td>${r.dyeTotal.toLocaleString()}</td>
+        <td class="${status}">${statusText}</td>
+      </tr>`;
+    });
 
-  function formatPartySummary(data){
-
-    const {reports,totalCount,totalLot,totalDye}=data;
-
-    const completion= totalLot>0
-      ? ((totalDye/totalLot)*100).toFixed(1)
-      : 0;
-
-    const blocks=reports.map(r=>`
-Sill : ${r.sill}
-Quality : ${r.quality}
-Lot : ${r.lot.toLocaleString()}
-Dye : ${r.dyeTotal.toLocaleString()}
-Status : ${r.lot-r.dyeTotal<=0?"EXTRA":"SHORT"}
-`).join("\n-----------------------------\n");
-
-    return `
-PARTY REPORT
-Showing ${reports.length} of ${totalCount}
-----------------------------------
-${blocks}
-----------------------------------
-TOTAL LOT  : ${totalLot.toLocaleString()}
-TOTAL DYE  : ${totalDye.toLocaleString()}
-COMPLETION : ${completion} %
-`;
+    return htmlWrapper(`Party Report`, `
+      <div class="info-row">Showing ${data.reports.length} of ${data.totalCount} entries</div>
+      <table class="erp-table">
+        <tr><th>Sill</th><th>Quality</th><th>Lot</th><th>Dye</th><th>Status</th></tr>
+        ${rows}
+      </table>
+      <div class="summary-box">
+        📦 Total Lot: ${data.totalLot.toLocaleString()} yds<br>
+        🎨 Total Dye: ${data.totalDye.toLocaleString()} yds<br>
+        📊 Completion: ${completion}%
+      </div>
+    `);
   }
 
+  function formatSillReportHTML(reports) {
+    let output = '';
+    
+    reports.forEach((r, idx) => {
+      const statusClass = r.diff <= 0 ? 'positive' : 'negative';
+      const statusText = r.diff <= 0 ? 'EXTRA' : 'SHORT';
+      
+      output += `
+        <div class="info-row">
+          <b>Sill ${r.sill}</b> | ${r.party} | ${r.quality} | Lot: ${r.lot.toLocaleString()}
+        </div>
+        <table class="erp-table">
+          <tr><th colspan="2">PROCESS</th></tr>
+          <tr><td>Singing</td><td>${r.process.s.toLocaleString()}</td></tr>
+          <tr><td>Mercerise</td><td>${r.process.m.toLocaleString()}</td></tr>
+          <tr><td>Bleach</td><td>${r.process.b.toLocaleString()}</td></tr>
+          
+          <tr><th colspan="2">DYEING</th></tr>
+          <tr><td>CPB</td><td>${r.dyeing.c.toLocaleString()}</td></tr>
+          <tr><td>Jigger</td><td>${r.dyeing.j.toLocaleString()}</td></tr>
+          <tr><td>Ex-Jigger</td><td>${r.dyeing.ex.toLocaleString()}</td></tr>
+          <tr><td>Napthol</td><td>${r.dyeing.n.toLocaleString()}</td></tr>
+          
+          <tr><th colspan="2">FINISHING</th></tr>
+          <tr><td>Folding</td><td>${r.folding.toLocaleString()}</td></tr>
+        </table>
+        <div class="summary-box ${statusClass}">
+          🎨 Total Dye: ${r.dyeTotal.toLocaleString()} yds<br>
+          📊 Status: ${statusText} ${Math.abs(r.diff).toLocaleString()} yds
+        </div>
+        ${idx < reports.length - 1 ? '<div style="margin: 10px 0;"></div>' : ''}
+      `;
+    });
 
-  function formatSillReport(reports){
-
-    const blocks=reports.map(r=>`
-Sill : ${r.sill}
-Party : ${r.party}
-Quality : ${r.quality}
-Lot : ${r.lot.toLocaleString()}
-
-PROCESS
-Singing   : ${r.process.s.toLocaleString()}
-Mercerise : ${r.process.m.toLocaleString()}
-Bleach    : ${r.process.b.toLocaleString()}
-
-DYEING
-CPB       : ${r.dyeing.c.toLocaleString()}
-Jigger    : ${r.dyeing.j.toLocaleString()}
-Ex-Jigger : ${r.dyeing.ex.toLocaleString()}
-Napthol   : ${r.dyeing.n.toLocaleString()}
-
-Folding : ${r.folding.toLocaleString()}
-Total Dye : ${r.dyeTotal.toLocaleString()}
-Status : ${r.diff<=0?"EXTRA":"SHORT"}
-`).join("\n=================================\n");
-
-    return `
-SILL PRODUCTION REPORT
-=================================
-${blocks}
-=================================
-`;
+    return htmlWrapper(`Sill Production Report`, output);
   }
+
+  function formatMonthSummaryHTML(monthName, process, dyeing, folding, dyeTotal) {
+    return htmlWrapper(`${monthName} Factory Summary`, `
+      <table class="erp-table">
+        <tr><th colspan="2">PROCESS</th></tr>
+        <tr><td>Singing</td><td>${process.s.toLocaleString()}</td></tr>
+        <tr><td>Mercerise</td><td>${process.m.toLocaleString()}</td></tr>
+        <tr><td>Bleach</td><td>${process.b.toLocaleString()}</td></tr>
+        
+        <tr><th colspan="2">DYEING</th></tr>
+        <tr><td>CPB</td><td>${dyeing.c.toLocaleString()}</td></tr>
+        <tr><td>Jigger</td><td>${dyeing.j.toLocaleString()}</td></tr>
+        <tr><td>Ex-Jigger</td><td>${dyeing.ex.toLocaleString()}</td></tr>
+        <tr><td>Napthol</td><td>${dyeing.n.toLocaleString()}</td></tr>
+        
+        <tr><th colspan="2">FINISHING</th></tr>
+        <tr><td>Folding</td><td>${folding.toLocaleString()}</td></tr>
+      </table>
+      <div class="summary-box">📍 Total Dyeing: ${dyeTotal.toLocaleString()} yds</div>
+    `);
+  }
+
+  function formatTotalDyeingHTML(c, j, ex, n) {
+    const total = c + j + ex + n;
+    return htmlWrapper(`Total Dyeing`, `
+      <table class="erp-table">
+        <tr><td>CPB</td><td>${c.toLocaleString()}</td></tr>
+        <tr><td>Jigger</td><td>${j.toLocaleString()}</td></tr>
+        <tr><td>Ex-Jigger</td><td>${ex.toLocaleString()}</td></tr>
+        <tr><td>Napthol</td><td>${n.toLocaleString()}</td></tr>
+      </table>
+      <div class="summary-box">📍 Total: ${total.toLocaleString()} yds</div>
+    `);
+  }
+
 /* ===================== HELP ===================== */
 
   if(cleanInput==="help"){
     return res.json({
-      reply:`
-Available Commands:
-cpb per day
-jigger per day
-napthol per day
-total dyeing
-totall
-15 feb
-15 feb cpb
-12345
-noor
-noor cpb
-`
+      reply: htmlWrapper('Available Commands', `
+        <div style="padding:8px">
+          • cpb per day<br>
+          • jigger per day<br>
+          • napthol per day<br>
+          • total dyeing<br>
+          • totall<br>
+          • 15 feb<br>
+          • 15 feb cpb<br>
+          • 12345 (lot)<br>
+          • noor (party)<br>
+          • noor cpb<br>
+          • feb per day dyeing (monthly table)
+        </div>
+      `)
     });
   }
 
@@ -508,69 +652,48 @@ if (monthPerDayDyeingMatch) {
     totalNapthol += napthol;
     overallTotal += dayTotal;
 
-    rowsHtml += `
-    <tr>
-      <td>${String(d).padStart(2,"0")}</td>
-      <td>${cpb.toLocaleString()}</td>
-      <td>${jigger.toLocaleString()}</td>
-      <td>${ex.toLocaleString()}</td>
-      <td>${napthol.toLocaleString()}</td>
-      <td><strong>${dayTotal.toLocaleString()}</strong></td>
-    </tr>`;
+    if(dayTotal > 0) {
+      rowsHtml += `
+      <tr>
+        <td>${String(d).padStart(2,"0")}</td>
+        <td>${cpb.toLocaleString()}</td>
+        <td>${jigger.toLocaleString()}</td>
+        <td>${ex.toLocaleString()}</td>
+        <td>${napthol.toLocaleString()}</td>
+        <td><strong>${dayTotal.toLocaleString()}</strong></td>
+      </tr>`;
+    }
   }
 
   return res.json({
-    reply: `
-    <div style="background:#ffffff;padding:15px;border-radius:8px">
-
-      <h3 style="text-align:center;margin-bottom:10px">
-        ${monthName} DAILY DYEING
-      </h3>
-
-      <table style="
-        width:100%;
-        border-collapse:collapse;
-        font-size:14px;
-        text-align:center;
-      ">
+    reply: htmlWrapper(`${monthName} Daily Dyeing`, `
+      <div class="month-header">📊 ${monthName} DAILY DYEING REPORT</div>
+      <table class="erp-table">
         <thead>
-          <tr style="background:#f3f3f3;font-weight:bold">
-            <th style="border:1px solid #ccc;padding:6px">DATE</th>
-            <th style="border:1px solid #ccc;padding:6px">CPB</th>
-            <th style="border:1px solid #ccc;padding:6px">JIGGER</th>
-            <th style="border:1px solid #ccc;padding:6px">EX-JIGGER</th>
-            <th style="border:1px solid #ccc;padding:6px">NAPTHOL</th>
-            <th style="border:1px solid #ccc;padding:6px">TOTAL</th>
+          <tr>
+            <th>DATE</th>
+            <th>CPB</th>
+            <th>JIGGER</th>
+            <th>EX-JIGGER</th>
+            <th>NAPTHOL</th>
+            <th>TOTAL</th>
           </tr>
         </thead>
-
         <tbody>
-          ${rowsHtml}
+          ${rowsHtml || '<tr><td colspan="6" style="text-align:center">No data found</td></tr>'}
         </tbody>
-
         <tfoot>
-          <tr style="background:#f9f9f9;font-weight:bold">
-            <td style="border:1px solid #ccc;padding:6px">TOTAL</td>
-            <td style="border:1px solid #ccc;padding:6px">${totalCPB.toLocaleString()}</td>
-            <td style="border:1px solid #ccc;padding:6px">${totalJigger.toLocaleString()}</td>
-            <td style="border:1px solid #ccc;padding:6px">${totalEx.toLocaleString()}</td>
-            <td style="border:1px solid #ccc;padding:6px">${totalNapthol.toLocaleString()}</td>
-            <td style="border:1px solid #ccc;padding:6px">${overallTotal.toLocaleString()}</td>
+          <tr style="background:#e2e8f0;font-weight:bold">
+            <td>TOTAL</td>
+            <td>${totalCPB.toLocaleString()}</td>
+            <td>${totalJigger.toLocaleString()}</td>
+            <td>${totalEx.toLocaleString()}</td>
+            <td>${totalNapthol.toLocaleString()}</td>
+            <td>${overallTotal.toLocaleString()}</td>
           </tr>
         </tfoot>
-
       </table>
-
-      <div style="
-        margin-top:10px;
-        text-align:right;
-        font-weight:bold;
-      ">
-        OVERALL TOTAL : ${overallTotal.toLocaleString()} yds
-      </div>
-
-    </div>
-    `
+    `)
   });
 }
     
@@ -584,7 +707,7 @@ if (monthPerDayDyeingMatch) {
       .replace("ex-jigger","ex_jigger");
 
     const data=getMonthlyPerDay(db,proc);
-    return res.json({reply:formatPerDay(proc,data)});
+    return res.json({reply: formatPerDayHTML(proc, data)});
   }
 
 
@@ -596,18 +719,7 @@ if (monthPerDayDyeingMatch) {
     const ex=getProcessSum(db,"ex_jigger");
     const n=getProcessSum(db,"napthol");
 
-    return res.json({
-      reply:`
-TOTAL DYEING
-----------------------------------
-CPB       : ${c.toLocaleString()}
-Jigger    : ${j.toLocaleString()}
-Ex-Jigger : ${ex.toLocaleString()}
-Napthol   : ${n.toLocaleString()}
-----------------------------------
-TOTAL     : ${(c+j+ex+n).toLocaleString()} yds
-`
-    });
+    return res.json({reply: formatTotalDyeingHTML(c, j, ex, n)});
   }
 
 
@@ -615,7 +727,7 @@ TOTAL     : ${(c+j+ex+n).toLocaleString()} yds
 
   if(cleanInput==="totall"){
     const data=getFactoryTotals(db);
-    return res.json({reply:formatFactorySummary(data)});
+    return res.json({reply: formatFactorySummaryHTML(data)});
   }
 
 
@@ -636,7 +748,7 @@ TOTAL     : ${(c+j+ex+n).toLocaleString()} yds
     })||[];
 
     if(rows.length===0)
-      return res.json({reply:"No production on this date."});
+      return res.json({reply: htmlWrapper('No Data', 'No production on this date.')});
 
     const combined={};
 
@@ -657,22 +769,21 @@ TOTAL     : ${(c+j+ex+n).toLocaleString()} yds
       combined[sill].qty+=qty;
     });
 
-    const list=Object.entries(combined)
-      .map(([sill,data])=>
-        `${sill} | ${data.party} : ${data.qty.toLocaleString()} yds`
-      ).join("\n");
+    let tableRows = '';
+    Object.entries(combined).forEach(([sill, data]) => {
+      tableRows += `<tr><td>${sill}</td><td>${data.party}</td><td>${data.qty.toLocaleString()}</td></tr>`;
+    });
 
-    const total=rows.reduce((t,r)=>t+safeNumber(r[6]),0);
+    const total = rows.reduce((t,r)=>t+safeNumber(r[6]),0);
 
     return res.json({
-      reply:`
-DATE : ${dateObj.toDateString()}
-PROCESS : ${proc.toUpperCase()}
-----------------------------------
-${list}
-----------------------------------
-TOTAL : ${total.toLocaleString()} yds
-`
+      reply: htmlWrapper(`${proc.toUpperCase()} - ${dateObj.toDateString()}`, `
+        <table class="erp-table">
+          <tr><th>Sill</th><th>Party</th><th>Yards</th></tr>
+          ${tableRows}
+        </table>
+        <div class="summary-box">📍 Total: ${total.toLocaleString()} yds</div>
+      `)
     });
   }
 
@@ -681,7 +792,7 @@ TOTAL : ${total.toLocaleString()} yds
 
   if(dateObj){
     const data=getDateReport(db,dateObj);
-    return res.json({reply:formatDateReport(data)});
+    return res.json({reply: formatDateReportHTML(data, dateObj.toDateString())});
   }
 /* ===================== MONTH SMART SUMMARY ===================== */
 
@@ -732,62 +843,40 @@ if (monthMatch) {
 
   if(section === "dyeing"){
     return res.json({
-      reply:`
-${monthMatch[1].toUpperCase()} DYEING SUMMARY
-----------------------------------
-CPB       : ${dyeing.c.toLocaleString()}
-Jigger    : ${dyeing.j.toLocaleString()}
-Ex-Jigger : ${dyeing.ex.toLocaleString()}
-Napthol   : ${dyeing.n.toLocaleString()}
-----------------------------------
-TOTAL     : ${dyeTotal.toLocaleString()} yds
-`
+      reply: htmlWrapper(`${monthMatch[1].toUpperCase()} Dyeing Summary`, `
+        <table class="erp-table">
+          <tr><td>CPB</td><td>${dyeing.c.toLocaleString()}</td></tr>
+          <tr><td>Jigger</td><td>${dyeing.j.toLocaleString()}</td></tr>
+          <tr><td>Ex-Jigger</td><td>${dyeing.ex.toLocaleString()}</td></tr>
+          <tr><td>Napthol</td><td>${dyeing.n.toLocaleString()}</td></tr>
+        </table>
+        <div class="summary-box">📍 Total: ${dyeTotal.toLocaleString()} yds</div>
+      `)
     });
   }
 
   if(section === "process"){
     return res.json({
-      reply:`
-${monthMatch[1].toUpperCase()} PROCESS SUMMARY
-----------------------------------
-Singing   : ${process.s.toLocaleString()}
-Mercerise : ${process.m.toLocaleString()}
-Bleach    : ${process.b.toLocaleString()}
-`
+      reply: htmlWrapper(`${monthMatch[1].toUpperCase()} Process Summary`, `
+        <table class="erp-table">
+          <tr><td>Singing</td><td>${process.s.toLocaleString()}</td></tr>
+          <tr><td>Mercerise</td><td>${process.m.toLocaleString()}</td></tr>
+          <tr><td>Bleach</td><td>${process.b.toLocaleString()}</td></tr>
+        </table>
+      `)
     });
   }
 
   if(section === "folding"){
     return res.json({
-      reply:`
-${monthMatch[1].toUpperCase()} FOLDING
-----------------------------------
-Total Folding : ${folding.toLocaleString()} yds
-`
+      reply: htmlWrapper(`${monthMatch[1].toUpperCase()} Folding`, `
+        <div class="summary-box">📍 Total Folding: ${folding.toLocaleString()} yds</div>
+      `)
     });
   }
 
   // Default Full Report
-  return res.json({
-    reply:`
-MONTHLY FACTORY SUMMARY (${monthMatch[1].toUpperCase()})
-----------------------------------
-PROCESS
-Singing   : ${process.s.toLocaleString()}
-Mercerise : ${process.m.toLocaleString()}
-Bleach    : ${process.b.toLocaleString()}
-
-DYEING
-CPB       : ${dyeing.c.toLocaleString()}
-Jigger    : ${dyeing.j.toLocaleString()}
-Ex-Jigger : ${dyeing.ex.toLocaleString()}
-Napthol   : ${dyeing.n.toLocaleString()}
-
-Folding   : ${folding.toLocaleString()}
-----------------------------------
-TOTAL DYEING : ${dyeTotal.toLocaleString()} yds
-`
-  });
+  return res.json({reply: formatMonthSummaryHTML(monthMatch[1].toUpperCase(), process, dyeing, folding, dyeTotal)});
 
 }
 
@@ -797,7 +886,7 @@ TOTAL DYEING : ${dyeTotal.toLocaleString()} yds
   if(numMatch){
     const reports=getSillReport(db,normalizeSill(numMatch[1]));
     if(reports)
-      return res.json({reply:formatSillReport(reports)});
+      return res.json({reply: formatSillReportHTML(reports)});
   }
 
 
@@ -817,10 +906,10 @@ TOTAL DYEING : ${dyeTotal.toLocaleString()} yds
     )||[];
 
     if(greyRows.length===0)
-      return res.json({reply:"Party not found."});
+      return res.json({reply: htmlWrapper('Not Found', 'Party not found.')});
 
     let total=0;
-    let lines=[];
+    let rows = '';
 
     greyRows.forEach(row=>{
       const sill=normalizeSill(row[1]);
@@ -831,19 +920,18 @@ TOTAL DYEING : ${dyeTotal.toLocaleString()} yds
 
       if(qty>0){
         total+=qty;
-        lines.push(`${sill} : ${qty.toLocaleString()} yds`);
+        rows += `<tr><td>${sill}</td><td>${qty.toLocaleString()}</td></tr>`;
       }
     });
 
     return res.json({
-      reply:`
-Party : ${partyName.toUpperCase()}
-Process : ${proc.toUpperCase()}
-----------------------------------
-${lines.join("\n")}
-----------------------------------
-TOTAL : ${total.toLocaleString()} yds
-`
+      reply: htmlWrapper(`${partyName.toUpperCase()} - ${proc.toUpperCase()}`, `
+        <table class="erp-table">
+          <tr><th>Sill</th><th>Yards</th></tr>
+          ${rows || '<tr><td colspan="2">No data</td></tr>'}
+        </table>
+        <div class="summary-box">📍 Total: ${total.toLocaleString()} yds</div>
+      `)
     });
   }
 
@@ -852,11 +940,15 @@ TOTAL : ${total.toLocaleString()} yds
 
   const partyData = getPartyFullSummary(db, question);
   if (partyData)
-    return res.json({ reply: formatPartySummary(partyData) });
+    return res.json({ reply: formatPartySummaryHTML(partyData) });
 
   return res.json({
-    reply: "Command not recognized. Type help."
+    reply: htmlWrapper('ERP Search', `
+      <div style="padding:8px">
+        Command not recognized. Type <b>help</b> for available commands.
+      </div>
+    `)
   });
-});   // ← router.post("/ask") এর closing bracket
+});   // router.post("/ask") এর closing bracket
 
 module.exports = router;
