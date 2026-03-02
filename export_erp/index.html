@@ -61,6 +61,9 @@ header{
  display:flex;
  flex-direction:column;
  gap:14px;
+
+ /* 🔥 FIX */
+ align-items:stretch;
 }
 
 /* Chat Bubble */
@@ -84,32 +87,32 @@ header{
  border:1px solid #475569;
 }
 
-/* ===== CHAT REPORT FIT VERSION ===== */
+/* ===== REPORT FULL WIDTH FIX ===== */
 
 .report{
- width:100%;
+ width:100% !important;
+ max-width:100% !important;
+ align-self:stretch !important;
  background:#ffffff;
  color:#000;
  border-radius:12px;
- padding:10px;          /* কমানো হয়েছে */
+ padding:10px;
  box-sizing:border-box;
  box-shadow:0 6px 18px rgba(0,0,0,.4);
  overflow-x:auto;
  margin-top:6px;
 }
 
-/* Smaller Title */
 .report h3{
  text-align:center;
  margin-bottom:6px;
  font-size:14px;
 }
 
-/* Table Fit */
 .report table{
  width:100%;
  border-collapse:collapse;
- font-size:12px;        /* ছোট করা হয়েছে */
+ font-size:12px;
 }
 
 .report th{
@@ -121,7 +124,7 @@ header{
 .report th,
 .report td{
  border:1px solid #ccc;
- padding:4px;          /* কমানো হয়েছে */
+ padding:4px;
  text-align:center;
 }
 
@@ -133,6 +136,7 @@ header{
  background:#fafafa;
 }
 
+/* Suggestions */
 #suggestions{
  position:fixed;
  bottom:95px;
@@ -254,7 +258,6 @@ function add(text,type){
 
  var d=document.createElement("div");
 
- // 🔥 Detect Report (HTML Table)
  if(text.includes("<table")){
    d.className="report";
    d.innerHTML=text;
@@ -268,7 +271,8 @@ function add(text,type){
  chat.appendChild(d);
  chat.scrollTop=chat.scrollHeight;
 }
- function send(){
+
+function send(){
  var text=input.value.trim();
  if(text==="") return;
 
@@ -339,122 +343,6 @@ input.addEventListener("input",function(){
 
  suggestions.style.display="block";
 });
-
-/* ===================== CORPORATE PRINT ===================== */
-function printChat(){
-
- var bots=document.querySelectorAll(".bot, .report");
- if(bots.length===0) return;
-
- var lastReport=bots[bots.length-1].innerHTML;
- var now=new Date().toLocaleString();
-
- var win=window.open("","","width=900,height=700");
-
- win.document.write(`
-  <html>
-  <head>
-   <title>Production Report</title>
-   <style>
- @page{
-   size:A4 portrait;
-   margin:6mm;
- }
-
- body{
-   font-family:Arial;
-   margin:0;
-   padding:0;
-   zoom:0.88;
- }
-
- .company{
-   font-size:22px;
-   font-weight:bold;
-   text-align:center;
- }
-
- .address{
-   text-align:center;
-   font-size:12px;
-   margin-top:4px;
- }
-
- .title{
-   text-align:center;
-   font-size:14px;
-   font-weight:bold;
-   margin-top:6px;
- }
-
- .meta{
-   margin-top:10px;
-   font-size:11px;
- }
-
- table{
-   width:100%;
-   border-collapse:collapse;
-   font-size:10px;   /* 🔥 ছোট করলে A4 এ ফিট হবে */
-   margin-top:10px;
- }
- table{
- page-break-inside:avoid;
-}
-
-tr{
- page-break-inside:avoid;
-}
-
-.footer{
- page-break-inside:avoid;
-}
-
- th, td{
-   border:1px solid #000;
-   padding:4px;
-   text-align:center;
- }
-
- th{
-   background:#f2f2f2;
- }
-
- .footer{
-   margin-top:25px;
-   font-size:11px;
-   display:flex;
-   justify-content:space-between;
- }
-
- hr{
-   margin:8px 0;
- }
-   </style>
-  </head>
-  <body>
-
-   <div class="company">Sukhy Dyeing & Finishing Mills Ltd.</div>
-   <div class="address">Kurerpar, Sekherchor, Narsingdi.</div>
-   <div class="title">34" Production Report</div>
-   <div class="meta"><b>Generated:</b> ${now}</div>
-
-   <hr>
-
-   ${lastReport}
-
-   <div class="footer">
-     <div>Prepared By: Mehedi Hasan<br>Developed By: Mehedi Hasan</div>
-     <div>Signature: ________________________</div>
-   </div>
-
-  </body>
-  </html>
- `);
-
- win.document.close();
- win.print();
-}
 </script>
 
 </body>
