@@ -125,19 +125,23 @@ router.post("/ask", async (req, res) => {
   }
 
   // =====================================================
-  // DATE WISE REPORT (ALL STN)  e.g. 1 feb
+  // =====================================================
+  // DATE WISE REPORT (ALL STN SEPARATE)
   // =====================================================
   const dateMatch = question.match(/(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
 
   if (dateMatch && !question.includes("stn")) {
 
-    const day = dateMatch[1].padStart(2, "0");
+    const day = parseInt(dateMatch[1]);
     const month = dateMatch[2];
 
-    let machineTotals = {};
-    let processTotals = {};
-    let machineGrandTotal = 0;
+    let processSummary = {};
     let processGrandTotal = 0;
+
+    let output =
+`📅 ${day.toString().padStart(2,"0")} ${month.toUpperCase()} REPORT
+━━━━━━━━━━━━━━━━━━
+`;
 
     for (let stn in STN_GIDS) {
 
@@ -148,11 +152,17 @@ router.post("/ask", async (req, res) => {
       const headers = db[0];
       const rows = db.slice(1);
 
-      const filteredRows = rows.filter(r =>
-        r[0] &&
-        r[0].toLowerCase().includes(day) &&
-        r[0].toLowerCase().includes(month)
-      );
+      const filteredRows = rows.filter(r => {
+        if (!r[0]) return false;
+
+        const cellDate = new Date(r[0]);
+        if (isNaN(cellDate)) return false;
+
+        return (
+          cellDate.getDate() === day &&
+          months[cellDate.getMonth()] === month
+        );
+      });
 
       if (filteredRows.length === 0) continue;
 
@@ -160,6 +170,7 @@ router.post("/ask", async (req, res) => {
         filteredRows.reduce((t,r)=>t+(parseFloat(r[index])||0),0);
 
       let stnTotal = 0;
+      let stnBlock = `\n🏭 STN ${stn}\n━━━━━━━━━━━━━━━━━━\n`;
 
       headers.forEach((h,i)=>{
         if (i === 0) return;
@@ -169,43 +180,34 @@ router.post("/ask", async (req, res) => {
         if (total !== 0) {
 
           stnTotal += total;
+          stnBlock += `${h} : ${total.toLocaleString()}\n`;
 
-          if (!processTotals[h])
-            processTotals[h] = 0;
+          if (!processSummary[h])
+            processSummary[h] = 0;
 
-          processTotals[h] += total;
+          processSummary[h] += total;
         }
       });
 
-      machineTotals[stn] = stnTotal;
-      machineGrandTotal += stnTotal;
+      stnBlock += `Total = ${stnTotal.toLocaleString()}\n`;
+
+      output += stnBlock;
     }
 
-    let output =
-`📅 ${day} ${month.toUpperCase()} REPORT
-━━━━━━━━━━━━━━━━━━
+    // ================= PROCESS SUMMARY =================
 
-🏭 Machine Wish
-━━━━━━━━━━━━━━━━━━
-`;
+    output += `\n━━━━━━━━━━━━━━━━━━\n⚙ PROCESS SUMMARY (ALL STN)\n━━━━━━━━━━━━━━━━━━\n`;
 
-    for (let stn in machineTotals) {
-      output += `☑ STN ${stn} : ${machineTotals[stn].toLocaleString()}\n`;
-    }
-
-    output += `Total = ${machineGrandTotal.toLocaleString()}\n`;
-
-    output += `\n━━━━━━━━━━━━━━━━━━\n⚙ Process Wish\n━━━━━━━━━━━━━━━━━━\n`;
-
-    for (let process in processTotals) {
-      output += `☑ ${process} : ${processTotals[process].toLocaleString()}\n`;
-      processGrandTotal += processTotals[process];
+    for (let process in processSummary) {
+      output += `${process} : ${processSummary[process].toLocaleString()}\n`;
+      processGrandTotal += processSummary[process];
     }
 
     output += `Total = ${processGrandTotal.toLocaleString()}\n`;
 
     return res.json({ reply: output });
   }
+  
   // =====================================================
   // SINGLE STN REPORT
   // =====================================================
