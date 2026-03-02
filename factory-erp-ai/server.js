@@ -20,16 +20,33 @@ const GID_MAP = {
     rolling: "1498627234"
 };
 
-// HTML টেমপ্লেট ফাংশন
+// HTML টেমপ্লেট ফাংশন - ইম্প্রুভড কনট্রাস্ট
 const htmlWrapper = (title, content) => {
     return `
     <style>
+        .erp-container {
+            font-family: Arial, sans-serif;
+            max-width: 100%;
+            background: #ffffff;
+            padding: 8px;
+            border-radius: 5px;
+        }
+        .erp-header {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1a202c;
+            background: #e2e8f0;
+            padding: 6px 8px;
+            margin: 0 0 8px 0;
+            border-radius: 4px;
+            border-left: 4px solid #2d3748;
+        }
         .erp-table {
             width: 100%;
             border-collapse: collapse;
-            font-family: Arial, sans-serif;
             font-size: 12px;
             margin: 5px 0;
+            background: white;
         }
         .erp-table th {
             background: #2d3748;
@@ -38,33 +55,61 @@ const htmlWrapper = (title, content) => {
             font-size: 11px;
             font-weight: bold;
             text-align: center;
+            border: 1px solid #1a202c;
         }
         .erp-table td {
-            padding: 4px;
+            padding: 5px 4px;
             border: 1px solid #cbd5e0;
+            color: #1a202c;
+            background: white;
         }
-        .erp-table tr:nth-child(even) {
-            background: #f7fafc;
+        .erp-table tr:nth-child(even) td {
+            background: #f8fafc;
         }
-        .positive { color: #2f855a; font-weight: bold; }
-        .negative { color: #c53030; font-weight: bold; }
-        .header-small {
-            font-size: 13px;
+        .erp-table tr:hover td {
+            background: #e6f7ff;
+        }
+        .positive { 
+            color: #0b5e0b; 
+            font-weight: bold; 
+            background: #e6ffe6 !important;
+        }
+        .negative { 
+            color: #b22222; 
             font-weight: bold;
-            margin: 2px 0 5px 0;
-            color: #2d3748;
+            background: #ffe6e6 !important;
         }
         .summary-box {
             background: #edf2f7;
-            padding: 5px;
-            margin-top: 5px;
+            padding: 8px;
+            margin-top: 8px;
             font-size: 12px;
             font-weight: bold;
+            border-radius: 4px;
+            border-left: 4px solid #2d3748;
+            color: #1a202c;
+        }
+        .info-row {
+            background: #f0f4f8;
+            padding: 6px 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #1a202c;
+            border: 1px solid #cbd5e0;
+        }
+        .party-name {
+            font-weight: bold;
+            color: #2d3748;
+            background: #e9edf2;
+            padding: 3px 6px;
             border-radius: 3px;
         }
     </style>
-    <div class="header-small">📊 ${title}</div>
-    ${content}
+    <div class="erp-container">
+        <div class="erp-header">📊 ${title}</div>
+        ${content}
+    </div>
     `;
 };
 
@@ -177,7 +222,7 @@ if(!q.match(/\d/) && q.length>=2){
                 <tr><th>Sill</th><th>Quality</th><th>Lot</th><th>Roll</th><th>Diff</th></tr>
                 ${tableRows}
             </table>
-            <div class="summary-box">Total: ${rows.length} entries | Showing last 10</div>
+            <div class="summary-box">📊 Total: ${rows.length} entries | Showing last 10</div>
         `);
 
         return res.json({reply: html});
@@ -265,7 +310,7 @@ let html = htmlWrapper(`Daily Summary - ${dateInput}`, `
         <tr><td>CPB</td><td>${formatNumber(cVal)}</td></tr>
         <tr><td>Jet</td><td>${formatNumber(jVal)}</td></tr>
         <tr><td>Jigger</td><td>${formatNumber(jgVal)}</td></tr>
-        <tr><td>Rolling</td><td>${formatNumber(rollingVal)}</td></tr>
+        <tr><td style="font-weight:bold">Rolling</td><td style="font-weight:bold">${formatNumber(rollingVal)}</td></tr>
     </table>
     <div class="summary-box">📍 Total Dyeing: ${formatNumber(totalDyeing)} yds</div>
 `);
@@ -303,20 +348,21 @@ const diffClass = diff <= 0 ? 'positive' : 'negative';
 const diffText = diff <= 0 ? 'Extra' : 'Short';
 
 let html = htmlWrapper(`Sill ${sill} Report`, `
-    <div style="margin-bottom:5px"><b>Party:</b> ${gRow[3]} | <b>Quality:</b> ${gRow[4]}</div>
+    <div class="info-row">
+        <span class="party-name">${gRow[3]}</span> | ${gRow[4]} | Lot: ${formatNumber(lotSize)} yds
+    </div>
     <table class="erp-table">
         <tr><th>Process</th><th>Yards</th></tr>
-        <tr><td>Lot Size</td><td><b>${formatNumber(lotSize)}</b></td></tr>
         <tr><td>Singing</td><td>${formatNumber(data.sing)}</td></tr>
         <tr><td>Marcerise</td><td>${formatNumber(data.marc)}</td></tr>
         <tr><td>CPB</td><td>${formatNumber(data.cpb)}</td></tr>
         <tr><td>Jet</td><td>${formatNumber(data.jet)}</td></tr>
         <tr><td>Jigger</td><td>${formatNumber(data.jig)}</td></tr>
-        <tr><td>Rolling</td><td><b>${formatNumber(data.roll)}</b></td></tr>
+        <tr><td style="font-weight:bold">Rolling</td><td style="font-weight:bold">${formatNumber(data.roll)}</td></tr>
     </table>
     <div class="summary-box">
         📍 Dyeing: ${formatNumber(totalDyeing)} yds<br>
-        📊 ${diffText}: ${formatNumber(Math.abs(diff))} yds
+        <span class="${diffClass}">📊 ${diffText}: ${formatNumber(Math.abs(diff))} yds</span>
     </div>
 `);
 
@@ -351,7 +397,7 @@ if(lotMatch && !q.includes("sill")){
 
     let html = htmlWrapper(`Lot ${lotNumber}`, `
         <table class="erp-table">
-            <tr><th>Party</th><td>${party}</td></tr>
+            <tr><th style="width:40%">Party</th><td>${party}</td></tr>
             <tr><th>Sill</th><td>${sill}</td></tr>
             <tr><th>Quality</th><td>${quality}</td></tr>
             <tr><th>Lot Size</th><td>${formatNumber(lotSize)} yds</td></tr>
@@ -481,7 +527,7 @@ if(isTotalQuery){
             <tr><td>CPB</td><td>${formatNumber(t.c)}</td></tr>
             <tr><td>Jet</td><td>${formatNumber(t.j)}</td></tr>
             <tr><td>Jigger</td><td>${formatNumber(t.jg)}</td></tr>
-            <tr><td>Rolling</td><td><b>${formatNumber(t.r)}</b></td></tr>
+            <tr><td style="font-weight:bold">Rolling</td><td style="font-weight:bold">${formatNumber(t.r)}</td></tr>
         </table>
     `);
 
@@ -606,7 +652,9 @@ total+=val;
 
 if(tableRows){
 let html = htmlWrapper(`${sectionKey} History - Sill ${sill}`, `
-    <div style="margin-bottom:5px"><b>Party:</b> ${party}</div>
+    <div class="info-row">
+        <span class="party-name">${party}</span>
+    </div>
     <table class="erp-table">
         <tr><th>Date</th><th>Yards</th></tr>
         ${tableRows}
@@ -687,15 +735,15 @@ if(q.includes("per day")){
 // ===== ফাইনাল =====
 res.json({reply: `
     ${htmlWrapper('ERP Search', `
-        <div style="padding:5px">
-            <b>Try these searches:</b><br><br>
-            🔹 Sill: 590<br>
-            🔹 Date+Section: 3 feb cpb<br>
-            🔹 Party: RB Design<br>
-            🔹 Month: feb dyeing<br>
-            🔹 Lot: 12345<br>
-            🔹 Total: total dyeing<br>
-            🔹 Inspection: feb rolling inspection
+        <div style="padding:8px; color:#1a202c;">
+            <b>🔍 Try these searches:</b><br><br>
+            • Sill: 590<br>
+            • Date+Section: 3 feb cpb<br>
+            • Party: RB Design<br>
+            • Month: feb dyeing<br>
+            • Lot: 12345<br>
+            • Total: total dyeing<br>
+            • Inspection: feb rolling inspection
         </div>
     `)}
 `});
