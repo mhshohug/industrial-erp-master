@@ -20,6 +20,7 @@ const STN_GIDS = {
   "4": "1173207402",
   "5": "1462575320"
 };
+
 // ===============================
 // FETCH SHEET FUNCTION
 // ===============================
@@ -44,12 +45,13 @@ router.post("/ask", async (req, res) => {
   const currentMonth = months[now.getMonth()];
 
   // =====================================================
-  // TOTAL REPORT (Machine + Process)
+  // 1️⃣ MONTH REPORT (total mar / mar)
   // =====================================================
-  if (question.startsWith("total")) {
+  const monthOnlyMatch = question.match(/^(total\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/);
 
-    let monthMatch = question.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
-    let selectedMonth = monthMatch ? monthMatch[1] : currentMonth;
+  if (monthOnlyMatch) {
+
+    const selectedMonth = monthOnlyMatch[2];
 
     let machineTotals = {};
     let processTotals = {};
@@ -58,8 +60,7 @@ router.post("/ask", async (req, res) => {
 
     for (let stn in STN_GIDS) {
 
-      const gid = STN_GIDS[stn];
-      const db = await fetchSheetByGid(gid);
+      const db = await fetchSheetByGid(STN_GIDS[stn]);
       if (!db || db.length <= 1) continue;
 
       const headers = db[0];
@@ -69,34 +70,26 @@ router.post("/ask", async (req, res) => {
         r[0] && r[0].toLowerCase().includes(selectedMonth)
       );
 
-      if (filteredRows.length === 0) continue;
+      if (!filteredRows.length) continue;
 
-      const getTotal = (index) =>
-        filteredRows.reduce((t,r)=>t+(parseFloat(r[index])||0),0);
+      const getTotal = i =>
+        filteredRows.reduce((t,r)=>t+(parseFloat(r[i])||0),0);
 
       let stnTotal = 0;
 
       headers.forEach((h,i)=>{
-        if (i === 0) return;
-
+        if(i===0) return;
         const total = getTotal(i);
-
-        if (total !== 0) {
-
+        if(total!==0){
           stnTotal += total;
-
-          if (!processTotals[h])
-            processTotals[h] = 0;
-
-          processTotals[h] += total;
+          if(!processTotals[h]) processTotals[h]=0;
+          processTotals[h]+=total;
         }
       });
 
-      machineTotals[stn] = stnTotal;
-      machineGrandTotal += stnTotal;
+      machineTotals[stn]=stnTotal;
+      machineGrandTotal+=stnTotal;
     }
-
-    // ================= OUTPUT =================
 
     let output =
 `📊 ${selectedMonth.toUpperCase()} REPORT
@@ -106,7 +99,7 @@ router.post("/ask", async (req, res) => {
 ━━━━━━━━━━━━━━━━━━
 `;
 
-    for (let stn in machineTotals) {
+    for(let stn in machineTotals){
       output += `☑ STN ${stn} : ${machineTotals[stn].toLocaleString()}\n`;
     }
 
@@ -114,9 +107,9 @@ router.post("/ask", async (req, res) => {
 
     output += `\n━━━━━━━━━━━━━━━━━━\n⚙ Process Wish\n━━━━━━━━━━━━━━━━━━\n`;
 
-    for (let process in processTotals) {
-      output += `☑ ${process} : ${processTotals[process].toLocaleString()}\n`;
-      processGrandTotal += processTotals[process];
+    for(let p in processTotals){
+      output += `☑ ${p} : ${processTotals[p].toLocaleString()}\n`;
+      processGrandTotal+=processTotals[p];
     }
 
     output += `Total = ${processGrandTotal.toLocaleString()}\n`;
@@ -125,12 +118,11 @@ router.post("/ask", async (req, res) => {
   }
 
   // =====================================================
+  // 2️⃣ DATE REPORT (1 mar)
   // =====================================================
-  // DATE WISE REPORT (ALL STN SEPARATE)
-  // =====================================================
-  const dateMatch = question.match(/(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
+  const dateMatch = question.match(/^(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/);
 
-  if (dateMatch && !question.includes("stn")) {
+  if (dateMatch) {
 
     const day = parseInt(dateMatch[1]);
     const month = dateMatch[2];
@@ -145,99 +137,80 @@ router.post("/ask", async (req, res) => {
 
     for (let stn in STN_GIDS) {
 
-      const gid = STN_GIDS[stn];
-      const db = await fetchSheetByGid(gid);
+      const db = await fetchSheetByGid(STN_GIDS[stn]);
       if (!db || db.length <= 1) continue;
 
       const headers = db[0];
       const rows = db.slice(1);
 
-      const filteredRows = rows.filter(r => {
-        if (!r[0]) return false;
-
-        const cellDate = new Date(r[0]);
-        if (isNaN(cellDate)) return false;
-
-        return (
-          cellDate.getDate() === day &&
-          months[cellDate.getMonth()] === month
-        );
+      const filteredRows = rows.filter(r=>{
+        if(!r[0]) return false;
+        const d=new Date(r[0]);
+        if(isNaN(d)) return false;
+        return d.getDate()===day && months[d.getMonth()]===month;
       });
 
-      if (filteredRows.length === 0) continue;
+      if(!filteredRows.length) continue;
 
-      const getTotal = (index) =>
-        filteredRows.reduce((t,r)=>t+(parseFloat(r[index])||0),0);
+      const getTotal=i=>
+        filteredRows.reduce((t,r)=>t+(parseFloat(r[i])||0),0);
 
-      let stnTotal = 0;
-      let stnBlock = `\n🏭 STN ${stn}\n━━━━━━━━━━━━━━━━━━\n`;
+      let stnTotal=0;
+      let block=`\n🏭 STN ${stn}\n━━━━━━━━━━━━━━━━━━\n`;
 
       headers.forEach((h,i)=>{
-        if (i === 0) return;
-
-        const total = getTotal(i);
-
-        if (total !== 0) {
-
-          stnTotal += total;
-          stnBlock += `${h} : ${total.toLocaleString()}\n`;
-
-          if (!processSummary[h])
-            processSummary[h] = 0;
-
-          processSummary[h] += total;
+        if(i===0) return;
+        const total=getTotal(i);
+        if(total!==0){
+          stnTotal+=total;
+          block+=`${h} : ${total.toLocaleString()}\n`;
+          if(!processSummary[h]) processSummary[h]=0;
+          processSummary[h]+=total;
         }
       });
 
-      stnBlock += `Total = ${stnTotal.toLocaleString()}\n`;
-
-      output += stnBlock;
+      block+=`Total = ${stnTotal.toLocaleString()}\n`;
+      output+=block;
     }
 
-    // ================= PROCESS SUMMARY =================
+    output+=`\n━━━━━━━━━━━━━━━━━━\n⚙ PROCESS SUMMARY (ALL STN)\n━━━━━━━━━━━━━━━━━━\n`;
 
-    output += `\n━━━━━━━━━━━━━━━━━━\n⚙ PROCESS SUMMARY (ALL STN)\n━━━━━━━━━━━━━━━━━━\n`;
-
-    for (let process in processSummary) {
-      output += `${process} : ${processSummary[process].toLocaleString()}\n`;
-      processGrandTotal += processSummary[process];
+    for(let p in processSummary){
+      output+=`${p} : ${processSummary[p].toLocaleString()}\n`;
+      processGrandTotal+=processSummary[p];
     }
 
-    output += `Total = ${processGrandTotal.toLocaleString()}\n`;
+    output+=`Total = ${processGrandTotal.toLocaleString()}\n`;
 
     return res.json({ reply: output });
   }
-  
+
   // =====================================================
-  // SINGLE STN REPORT
+  // 3️⃣ SINGLE STN REPORT (stn 3 mar)
   // =====================================================
-  const machineMatch = question.match(/stn\s?([1-5])/);
+  const stnMatch = question.match(/^stn\s?([1-5])(\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))?$/);
 
-  if (machineMatch) {
+  if (stnMatch) {
 
-    const stnNumber = machineMatch[1];
-    const gid = STN_GIDS[stnNumber];
+    const stnNumber = stnMatch[1];
+    const selectedMonth = stnMatch[3] || currentMonth;
 
-    const db = await fetchSheetByGid(gid);
-
+    const db = await fetchSheetByGid(STN_GIDS[stnNumber]);
     if (!db || db.length <= 1)
-      return res.json({ reply: "❌ এই STN এ ডেটা নেই" });
+      return res.json({ reply:"❌ এই STN এ ডেটা নেই" });
 
-    const headers = db[0];
-    const rows = db.slice(1);
-
-    let monthMatch = question.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
-    let selectedMonth = monthMatch ? monthMatch[1] : currentMonth;
+    const headers=db[0];
+    const rows=db.slice(1);
 
     const filteredRows = rows.filter(r =>
       r[0] && r[0].toLowerCase().includes(selectedMonth)
     );
 
-    if (filteredRows.length === 0)
-      return res.json({ reply: "❌ ঐ মাসে ডেটা নেই" });
+    if(!filteredRows.length)
+      return res.json({ reply:"❌ ঐ মাসে ডেটা নেই" });
 
-    const getTotal = (index) =>
-      filteredRows.reduce((t,r)=>t+(parseFloat(r[index])||0),0);
+    const getTotal=i=>
+      filteredRows.reduce((t,r)=>t+(parseFloat(r[i])||0),0);
 
     let output =
 `📊 STN ${stnNumber} - ${selectedMonth.toUpperCase()} REPORT
@@ -245,18 +218,19 @@ router.post("/ask", async (req, res) => {
 `;
 
     headers.forEach((h,i)=>{
-      if (i === 0) return;
-      const total = getTotal(i);
-      if (total !== 0)
-        output += `${h} : ${total.toLocaleString()}\n`;
+      if(i===0) return;
+      const total=getTotal(i);
+      if(total!==0)
+        output+=`${h} : ${total.toLocaleString()}\n`;
     });
 
-    return res.json({ reply: output });
+    return res.json({ reply:output });
   }
 
   return res.json({
-    reply: "সঠিক কমান্ড লিখুন (total, total feb, stn 1, stn 2 mar)"
+    reply:"সঠিক কমান্ড লিখুন (mar, total mar, 1 mar, stn 3 mar)"
   });
 
 });
+
 module.exports = router;
