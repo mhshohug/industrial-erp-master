@@ -20,7 +20,7 @@ const GID_MAP = {
     rolling: "1498627234"
 };
 
-// HTML টেমপ্লেট ফাংশন - ইম্প্রুভড কনট্রাস্ট
+// HTML টেমপ্লেট ফাংশন
 const htmlWrapper = (title, content) => {
     return `
     <style>
@@ -98,12 +98,55 @@ const htmlWrapper = (title, content) => {
             color: #1a202c;
             border: 1px solid #cbd5e0;
         }
-        .party-name {
+        .current-month-badge {
+            background: #2d3748;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 10px;
+            margin-left: 8px;
+        }
+        .dyeing-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            background: white;
+        }
+        .dyeing-table th {
+            background: #2d3748;
+            color: white;
+            padding: 6px 4px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            border: 1px solid #1a202c;
+        }
+        .dyeing-table td {
+            padding: 4px;
+            border: 1px solid #cbd5e0;
+            text-align: right;
+            color: #1a202c;
+        }
+        .dyeing-table td:first-child {
+            text-align: center;
+            font-weight: bold;
+            background: #f0f4f8;
+        }
+        .dyeing-table tr:last-child td {
+            background: #e2e8f0;
+            font-weight: bold;
+            border-top: 2px solid #2d3748;
+        }
+        .month-header {
+            font-size: 16px;
             font-weight: bold;
             color: #2d3748;
-            background: #e9edf2;
-            padding: 3px 6px;
-            border-radius: 3px;
+            margin-bottom: 8px;
+            padding: 5px;
+            background: #edf2f7;
+            border-radius: 4px;
+            text-align: center;
         }
     </style>
     <div class="erp-container">
@@ -174,7 +217,7 @@ function getParsedDate(q){
 router.post("/ask", async (req,res)=>{
 
 const q=(req.body.question||"").toLowerCase().trim();
-const isTotalQuery = /\btotall?\b/.test(q);
+const isTotalQuery = /\btot(al)?l?\b/.test(q); // total/totall
 
 const sheets=await Promise.all(Object.values(GID_MAP).map(fetchSheet));
 const [grey,sing,marc,cpb,jet,jig,roll]=sheets;
@@ -409,10 +452,131 @@ if(lotMatch && !q.includes("sill")){
     return res.json({reply: html});
 }
 
-// ===== মাসিক ডাইং =====
+// ===== পার ডে ডাইং রিপোর্ট (মাস ওয়াইজ) =====
+if(q.includes("per day") && q.includes("dyeing")){
+
+    const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
+    
+    if(!monthMatch) {
+        return res.json({reply: `Please specify month (e.g., mar per day dyeing)`});
+    }
+
+    const monthName = monthMatch[1];
+    const monthIndex = moment().month(monthName).month();
+    let monthYear = moment().year();
+    
+    // যদি মাস ভবিষ্যতের হয় তাহলে আগের বছর
+    if(moment().month(monthIndex).isAfter(moment())) {
+        monthYear--;
+    }
+
+    // ডেইলী ডাটা কালেক্ট করা
+    let dailyData = {};
+    
+    // 1 থেকে 31 তারিখ পর্যন্ত ইনিশিয়ালাইজ
+    for(let i=1; i<=31; i++) {
+        dailyData[i] = {
+            cpb: 0,
+            jigger: 0,
+            exJigger: 0,
+            napthol: 0,
+            total: 0
+        };
+    }
+
+    // CPB ডাটা
+    cpb.forEach(r => {
+        const date = normalizeSheetDate(r[0]);
+        const m = moment(date, "DD-MMM-YYYY", true);
+        if(!m.isValid()) return;
+        
+        if(m.month() === monthIndex && m.year() === monthYear) {
+            const day = m.date();
+            const val = parseFloat((r[6]||"").replace(/,/g,'')) || 0;
+            dailyData[day].cpb += val;
+            dailyData[day].total += val;
+        }
+    });
+
+    // Jigger ডাটা
+    jig.forEach(r => {
+        const date = normalizeSheetDate(r[0]);
+        const m = moment(date, "DD-MMM-YYYY", true);
+        if(!m.isValid()) return;
+        
+        if(m.month() === monthIndex && m.year() === monthYear) {
+            const day = m.date();
+            const val = parseFloat((r[7]||"").replace(/,/g,'')) || 0;
+            dailyData[day].jigger += val;
+            dailyData[day].total += val;
+        }
+    });
+
+    // HTML টেবিল বিল্ড করা
+    let tableRows = '';
+    let monthTotal = {cpb:0, jigger:0, exJigger:0, napthol:0, total:0};
+
+    for(let day=1; day<=31; day++) {
+        const data = dailyData[day];
+        
+        // যদি কোনো ডাটা থাকে তবেই দেখাবে
+        if(data.total > 0) {
+            tableRows += `
+            <tr>
+                <td style="font-weight:bold">${day.toString().padStart(2,'0')}</td>
+                <td>${formatNumber(data.cpb)}</td>
+                <td>${formatNumber(data.jigger)}</td>
+                <td>${formatNumber(data.exJigger)}</td>
+                <td>${formatNumber(data.napthol)}</td>
+                <td style="font-weight:bold">${formatNumber(data.total)}</td>
+            </tr>`;
+            
+            monthTotal.cpb += data.cpb;
+            monthTotal.jigger += data.jigger;
+            monthTotal.total += data.total;
+        }
+    }
+
+    // যদি কোনো ডাটা না থাকে
+    if(tableRows === '') {
+        return res.json({reply: `No dyeing data found for ${monthName.toUpperCase()}.`});
+    }
+
+    // ফাইনাল HTML
+    let html = htmlWrapper(`${monthName.toUpperCase()} Daily Dyeing`, `
+        <div class="month-header">📊 ${monthName.toUpperCase()} DAILY DYEING REPORT</div>
+        <table class="dyeing-table">
+            <thead>
+                <tr>
+                    <th>DATE</th>
+                    <th>CPB</th>
+                    <th>JIGGER</th>
+                    <th>EX-JIGGER</th>
+                    <th>NAPTHOL</th>
+                    <th>TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tableRows}
+                <tr>
+                    <td><b>TOTAL</b></td>
+                    <td><b>${formatNumber(monthTotal.cpb)}</b></td>
+                    <td><b>${formatNumber(monthTotal.jigger)}</b></td>
+                    <td><b>0</b></td>
+                    <td><b>0</b></td>
+                    <td><b>${formatNumber(monthTotal.total)}</b></td>
+                </tr>
+            </tbody>
+        </table>
+    `);
+
+    return res.json({reply: html});
+}
+
+// ===== মাসিক ডাইং (নির্দিষ্ট মাস) =====
 const monthOnlyMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
 
-if(monthOnlyMatch && q.includes("dyeing")){
+if(monthOnlyMatch && q.includes("dyeing") && !isTotalQuery && !q.includes("per day")){
 
     const monthName = monthOnlyMatch[1];
     const monthIndex = moment().month(monthName).month();
@@ -445,66 +609,44 @@ if(monthOnlyMatch && q.includes("dyeing")){
     return res.json({reply: html});
 }
 
-// ===== গ্র্যান্ড টোটাল =====
-if(isTotalQuery){
+// ===== টোটাল ডাইং - শুধু কারেন্ট মাস =====
+if(isTotalQuery && q.includes("dyeing")){
 
-    if(q.includes("dyeing")){
+    const currentMonth = moment().month();
+    const currentYear = moment().year();
+    const monthName = moment().format("MMM").toUpperCase();
 
-        const sectionMap = {
-            cpb: {rows: cpb, idx: 6, name: 'CPB'},
-            jet: {rows: jet, idx: 6, name: 'Jet'},
-            jigger: {rows: jig, idx: 7, name: 'Jigger'}
-        };
+    const filterByCurrentMonth = (rows, idx) => 
+        rows.reduce((acc, r) => {
+            const d = normalizeSheetDate(r[0]);
+            const m = moment(d, "DD-MMM-YYYY", true);
+            if(m.isValid() && m.month() === currentMonth && m.year() === currentYear){
+                return acc + (parseFloat((r[idx]||"").replace(/,/g,'')) || 0);
+            }
+            return acc;
+        }, 0);
 
-        let monthData = {};
+    const cpbTotal = filterByCurrentMonth(cpb,6);
+    const jetTotal = filterByCurrentMonth(jet,6);
+    const jiggerTotal = filterByCurrentMonth(jig,7);
+    const grandTotal = cpbTotal + jetTotal + jiggerTotal;
 
-        Object.keys(sectionMap).forEach(sec=>{
-            const {rows, idx} = sectionMap[sec];
+    let html = htmlWrapper(`${monthName} Dyeing Report (Current Month)`, `
+        <table class="erp-table">
+            <tr><th>Section</th><th>Yards</th></tr>
+            <tr><td>CPB</td><td>${formatNumber(cpbTotal)}</td></tr>
+            <tr><td>Jet</td><td>${formatNumber(jetTotal)}</td></tr>
+            <tr><td>Jigger</td><td>${formatNumber(jiggerTotal)}</td></tr>
+        </table>
+        <div class="summary-box">📍 Total Dyeing (${monthName}): ${formatNumber(grandTotal)} yds</div>
+    `);
 
-            rows.forEach(r=>{
-                const d = normalizeSheetDate(r[0]);
-                const m = moment(d,"DD-MMM-YYYY",true);
-                if(!m.isValid()) return;
+    return res.json({reply: html});
+}
 
-                const monthKey = m.format("MMM-YYYY");
-                const val = parseFloat((r[idx]||"").replace(/,/g,''))||0;
-                if(val<=0) return;
+// ===== গ্র্যান্ড টোটাল (অন্যান্য) =====
+if(isTotalQuery && !q.includes("dyeing")){
 
-                if(!monthData[monthKey]){
-                    monthData[monthKey] = {cpb:0, jet:0, jigger:0};
-                }
-                monthData[monthKey][sec] += val;
-            });
-        });
-
-        const sortedMonths = Object.keys(monthData)
-            .sort((a,b)=>moment(a,"MMM-YYYY")-moment(b,"MMM-YYYY"));
-
-        let tableRows = '';
-        sortedMonths.forEach(m=>{
-            const data = monthData[m];
-            const total = data.cpb + data.jet + data.jigger;
-            tableRows += `
-            <tr>
-                <td><b>${m}</b></td>
-                <td>${formatNumber(data.cpb)}</td>
-                <td>${formatNumber(data.jet)}</td>
-                <td>${formatNumber(data.jigger)}</td>
-                <td><b>${formatNumber(total)}</b></td>
-            </tr>`;
-        });
-
-        let html = htmlWrapper('Monthly Dyeing Breakdown', `
-            <table class="erp-table">
-                <tr><th>Month</th><th>CPB</th><th>Jet</th><th>Jigger</th><th>Total</th></tr>
-                ${tableRows}
-            </table>
-        `);
-
-        return res.json({reply: html});
-    }
-
-    // Full Grand Total
     const tSum = (rows,idx)=>
         rows.reduce((a,r)=>
             a+(parseFloat((r[idx]||"").replace(/,/g,''))||0)
@@ -615,7 +757,7 @@ return null;
 
 const sectionKey=secDetect(q);
 
-if(sectionKey){
+if(sectionKey && !q.includes("per day") && !q.includes("total")){
 
 const sectionMap={
 singing:sing,
@@ -667,8 +809,8 @@ return res.json({reply: html});
 
 }
 
-// ===== পার ডে রিপোর্ট =====
-if(q.includes("per day")){
+// ===== পার ডে রিপোর্ট (শুধু কারেন্ট মাস, নির্দিষ্ট সেকশন) =====
+if(q.includes("per day") && !q.includes("dyeing")){
 
     const sectionMap = {
         singing: {rows: sing, idx: 8, name: "Singing"},
@@ -681,16 +823,29 @@ if(q.includes("per day")){
 
     const sectionKey = Object.keys(sectionMap).find(s => q.includes(s));
     const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
-
+    
     if(sectionKey){
 
         const {rows, idx, name} = sectionMap[sectionKey];
-        let dayMap = {};
-        let monthIndex = null;
-
-        if(monthMatch){
-            monthIndex = moment().month(monthMatch[1]).month();
+        
+        let targetMonth, targetYear, monthName;
+        
+        if(monthMatch) {
+            targetMonth = moment().month(monthMatch[1]).month();
+            targetYear = moment().year();
+            monthName = monthMatch[1].toUpperCase();
+            
+            if(moment().month(targetMonth).isAfter(moment())) {
+                targetYear--;
+            }
+        } else {
+            targetMonth = moment().month();
+            targetYear = moment().year();
+            monthName = moment().format("MMM").toUpperCase();
         }
+        
+        let dayMap = {};
+        let total = 0;
 
         rows.forEach(r=>{
             const date = normalizeSheetDate(r[0]);
@@ -698,29 +853,28 @@ if(q.includes("per day")){
             const val = parseFloat((r[idx]||"").replace(/,/g,'')) || 0;
 
             if(!m.isValid() || val <= 0) return;
-            if(monthIndex !== null && m.month() !== monthIndex) return;
-
-            const formattedDate = m.format("DD-MMM-YYYY");
-            if(!dayMap[formattedDate]) dayMap[formattedDate] = 0;
-            dayMap[formattedDate] += val;
+            
+            if(m.month() === targetMonth && m.year() === targetYear) {
+                const formattedDate = m.format("DD-MMM-YYYY");
+                if(!dayMap[formattedDate]) dayMap[formattedDate] = 0;
+                dayMap[formattedDate] += val;
+                total += val;
+            }
         });
 
         const sortedDates = Object.keys(dayMap)
             .sort((a,b)=>moment(a,"DD-MMM-YYYY") - moment(b,"DD-MMM-YYYY"));
 
         if(!sortedDates.length)
-            return res.json({reply:`No data found.`});
+            return res.json({reply:`No data found for ${monthName} ${name}.`});
 
-        let total = 0;
         let tableRows = '';
-        let titleMonth = monthMatch ? monthMatch[1].toUpperCase()+" " : "";
 
         sortedDates.forEach((d,i)=>{
-            total += dayMap[d];
             tableRows += `<tr><td>${d}</td><td>${formatNumber(dayMap[d])}</td></tr>`;
         });
 
-        let html = htmlWrapper(`${titleMonth}${name} Per Day`, `
+        let html = htmlWrapper(`${monthName} ${name} Per Day`, `
             <table class="erp-table">
                 <tr><th>Date</th><th>Yards</th></tr>
                 ${tableRows}
@@ -742,7 +896,9 @@ res.json({reply: `
             • Party: RB Design<br>
             • Month: feb dyeing<br>
             • Lot: 12345<br>
-            • Total: total dyeing<br>
+            • Total: total dyeing (current month only)<br>
+            • Per Day: cpb per day (current month)<br>
+            • Per Day Dyeing: mar per day dyeing (monthly table)<br>
             • Inspection: feb rolling inspection
         </div>
     `)}
