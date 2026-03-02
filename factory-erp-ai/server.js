@@ -412,25 +412,38 @@ if(sMatch && !q.includes("total")){
 }
 
 // ===== লট সার্চ =====
-let lotMatch = q.match(/lot\s*(\d+)/) || q.match(/^\d{4,6}$/);
+let lotMatch = q.match(/lot\s*(\d+)/i) || q.match(/^(\d{4,6})$/);
 
 if(lotMatch && !q.includes("sill")){
 
-    const lotNumber = lotMatch[1] || lotMatch[0];
-    const gRow = grey.find(r => (r[6] || "").replace(/,/g, '').trim() === lotNumber);
+    let lotNumber = lotMatch[1] || lotMatch[0];
+    
+    // লট নম্বর থেকে কমা এবং স্পেস রিমুভ
+    lotNumber = lotNumber.toString().replace(/,/g, '').trim();
+    
+    // গ্রে শীটে খোঁজা
+    const gRow = grey.find(r => {
+        const greyLot = (r[6] || "").replace(/,/g, '').trim();
+        return greyLot === lotNumber;
+    });
 
-    if(!gRow)
-        return res.json({ reply: `Lot ${lotNumber} not found.` });
+    if(!gRow) {
+        return res.json({ reply: `❌ Lot ${lotNumber} পাওয়া যায়নি।` });
+    }
 
-    const sill = gRow[2];
-    const party = gRow[3];
-    const quality = gRow[4];
+    const sill = (gRow[2] || "").trim();
+    const party = gRow[3] || "Unknown";
+    const quality = gRow[4] || "Unknown";
     const lotSize = parseFloat((gRow[6] || "").replace(/,/g, '')) || 0;
 
-    const rolling = roll.reduce((a, r) =>
-        (r[1] || "").trim() === sill
-            ? a + (parseFloat((r[7] || "").replace(/,/g, '')) || 0)
-            : a, 0);
+    // রোলিং ডাটা কালেক্ট করা
+    const rolling = roll.reduce((a, r) => {
+        const rollSill = (r[1] || "").trim();
+        if(rollSill === sill) {
+            return a + (parseFloat((r[7] || "").replace(/,/g, '')) || 0);
+        }
+        return a;
+    }, 0);
 
     const diff = rolling - lotSize;
     const diffClass = diff >= 0 ? 'positive' : 'negative';
@@ -439,10 +452,10 @@ if(lotMatch && !q.includes("sill")){
     let html = htmlWrapper(`Lot ${lotNumber}`, `
         <table class="erp-table">
             <tr><th style="width:40%">Party</th><td>${party}</td></tr>
-            <tr><th>Sill</th><td>${sill}</td></tr>
+            <tr><th>Sill No</th><td>${sill}</td></tr>
             <tr><th>Quality</th><td>${quality}</td></tr>
             <tr><th>Lot Size</th><td>${formatNumber(lotSize)} yds</td></tr>
-            <tr><th>Rolling</th><td>${formatNumber(rolling)} yds</td></tr>
+            <tr><th>Total Rolling</th><td>${formatNumber(rolling)} yds</td></tr>
             <tr><th>Difference</th><td class="${diffClass}">${diffText}: ${formatNumber(Math.abs(diff))} yds</td></tr>
         </table>
     `);
