@@ -269,32 +269,116 @@ function quick(t){
  send();
 }
 
-/* ================= PRINT LAST BOT REPORT ================= */
+/* ===================== CORPORATE PRINT ===================== */
 function printChat(){
 
- var items=document.querySelectorAll("#chat .report, #chat .bot");
- if(items.length===0) return;
+ var bots=document.querySelectorAll(".bot, .report");
+ if(bots.length===0) return;
 
- var last=items[items.length-1].innerHTML;
+ var lastReport=bots[bots.length-1].innerHTML;
+ var now=new Date().toLocaleString();
 
  var win=window.open("","","width=900,height=700");
 
  win.document.write(`
- <html>
- <head>
- <title>Production Report</title>
- <style>
-  @page{ size:A4 portrait; margin:8mm; }
-  body{ font-family:Arial; }
-  table{ width:100%; border-collapse:collapse; }
-  th,td{ border:1px solid #000; padding:5px; text-align:center; }
-  th{ background:#f2f2f2; }
- </style>
- </head>
- <body>
- ${last}
- </body>
- </html>
+  <html>
+  <head>
+   <title>Production Report</title>
+   <style>
+ @page{
+   size:A4 portrait;
+   margin:6mm;
+ }
+
+ body{
+   font-family:Arial;
+   margin:0;
+   padding:0;
+   zoom:0.88;
+ }
+
+ .company{
+   font-size:22px;
+   font-weight:bold;
+   text-align:center;
+ }
+
+ .address{
+   text-align:center;
+   font-size:12px;
+   margin-top:4px;
+ }
+
+ .title{
+   text-align:center;
+   font-size:14px;
+   font-weight:bold;
+   margin-top:6px;
+ }
+
+ .meta{
+   margin-top:10px;
+   font-size:11px;
+ }
+
+ table{
+   width:100%;
+   border-collapse:collapse;
+   font-size:10px;   /* 🔥 ছোট করলে A4 এ ফিট হবে */
+   margin-top:10px;
+ }
+ table{
+ page-break-inside:avoid;
+}
+
+tr{
+ page-break-inside:avoid;
+}
+
+.footer{
+ page-break-inside:avoid;
+}
+
+ th, td{
+   border:1px solid #000;
+   padding:4px;
+   text-align:center;
+ }
+
+ th{
+   background:#f2f2f2;
+ }
+
+ .footer{
+   margin-top:25px;
+   font-size:11px;
+   display:flex;
+   justify-content:space-between;
+ }
+
+ hr{
+   margin:8px 0;
+ }
+   </style>
+  </head>
+  <body>
+
+   <div class="company">Sukhy Dyeing & Finishing Mills Ltd.</div>
+   <div class="address">Kurerpar, Sekherchor, Narsingdi.</div>
+   <div class="title">34" Production Report</div>
+   <div class="meta"><b>Generated:</b> ${now}</div>
+
+   <hr>
+
+   ${lastReport}
+
+   <div class="footer">
+     <div>Prepared By: Mehedi Hasan<br>Developed By: Mehedi Hasan</div>
+     <div>Signature: ________________________</div>
+   </div>
+
+  </body>
+  </html>
  `);
 
  win.document.close();
