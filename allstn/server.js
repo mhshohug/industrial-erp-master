@@ -22,6 +22,13 @@ const STN_GIDS = {
 };
 
 // ===============================
+// METER → YDS CONVERSION
+// ===============================
+function toYds(meter){
+  return meter * 1.09361;
+}
+
+// ===============================
 // FETCH SHEET FUNCTION
 // ===============================
 async function fetchSheetByGid(gid) {
@@ -33,6 +40,7 @@ async function fetchSheetByGid(gid) {
       .map(cell => cell.replace(/^"|"$/g, "").trim())
   );
 }
+
 // ===============================
 // ASK ROUTE
 // ===============================
@@ -45,7 +53,7 @@ router.post("/ask", async (req, res) => {
   const currentMonth = months[now.getMonth()];
 
   // =====================================================
-  // 1️⃣ MONTH REPORT (total mar / mar)
+  // 1️⃣ MONTH REPORT
   // =====================================================
   const monthOnlyMatch = question.match(/^(total\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/);
 
@@ -79,9 +87,12 @@ router.post("/ask", async (req, res) => {
 
       headers.forEach((h,i)=>{
         if(i===0) return;
-        const total = getTotal(i);
-        if(total!==0){
+
+        const total = toYds(getTotal(i));
+
+        if(total !== 0){
           stnTotal += total;
+
           if(!processTotals[h]) processTotals[h]=0;
           processTotals[h]+=total;
         }
@@ -92,7 +103,7 @@ router.post("/ask", async (req, res) => {
     }
 
     let output =
-`📊 ${selectedMonth.toUpperCase()} REPORT
+`📊 ${selectedMonth.toUpperCase()} REPORT (YDS)
 ━━━━━━━━━━━━━━━━━━
 
 🏭 Machine Wish
@@ -100,25 +111,29 @@ router.post("/ask", async (req, res) => {
 `;
 
     for(let stn in machineTotals){
-      output += `☑ STN ${stn} : ${machineTotals[stn].toLocaleString()}\n`;
+      output += `☑ STN ${stn} : ${machineTotals[stn]
+      .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
     }
 
-    output += `Total = ${machineGrandTotal.toLocaleString()}\n`;
+    output += `Total = ${machineGrandTotal
+    .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
 
     output += `\n━━━━━━━━━━━━━━━━━━\n⚙ Process Wish\n━━━━━━━━━━━━━━━━━━\n`;
 
     for(let p in processTotals){
-      output += `☑ ${p} : ${processTotals[p].toLocaleString()}\n`;
+      output += `☑ ${p} : ${processTotals[p]
+      .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
       processGrandTotal+=processTotals[p];
     }
 
-    output += `Total = ${processGrandTotal.toLocaleString()}\n`;
+    output += `Total = ${processGrandTotal
+    .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
 
     return res.json({ reply: output });
   }
 
   // =====================================================
-  // 2️⃣ DATE REPORT (1 mar)
+  // 2️⃣ DATE REPORT
   // =====================================================
   const dateMatch = question.match(/^(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/);
 
@@ -131,7 +146,7 @@ router.post("/ask", async (req, res) => {
     let processGrandTotal = 0;
 
     let output =
-`📅 ${day.toString().padStart(2,"0")} ${month.toUpperCase()} REPORT
+`📅 ${day.toString().padStart(2,"0")} ${month.toUpperCase()} REPORT (YDS)
 ━━━━━━━━━━━━━━━━━━
 `;
 
@@ -160,33 +175,41 @@ router.post("/ask", async (req, res) => {
 
       headers.forEach((h,i)=>{
         if(i===0) return;
-        const total=getTotal(i);
+
+        const total = toYds(getTotal(i));
+
         if(total!==0){
           stnTotal+=total;
-          block+=`${h} : ${total.toLocaleString()}\n`;
+          block+=`${h} : ${total
+          .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
+
           if(!processSummary[h]) processSummary[h]=0;
           processSummary[h]+=total;
         }
       });
 
-      block+=`Total = ${stnTotal.toLocaleString()}\n`;
+      block+=`Total = ${stnTotal
+      .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
+
       output+=block;
     }
 
     output+=`\n━━━━━━━━━━━━━━━━━━\n⚙ PROCESS SUMMARY (ALL STN)\n━━━━━━━━━━━━━━━━━━\n`;
 
     for(let p in processSummary){
-      output+=`${p} : ${processSummary[p].toLocaleString()}\n`;
+      output+=`${p} : ${processSummary[p]
+      .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
       processGrandTotal+=processSummary[p];
     }
 
-    output+=`Total = ${processGrandTotal.toLocaleString()}\n`;
+    output+=`Total = ${processGrandTotal
+    .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
 
     return res.json({ reply: output });
   }
 
   // =====================================================
-  // 3️⃣ SINGLE STN REPORT (stn 3 mar)
+  // 3️⃣ SINGLE STN REPORT
   // =====================================================
   const stnMatch = question.match(/^stn\s?([1-5])(\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))?$/);
 
@@ -213,15 +236,18 @@ router.post("/ask", async (req, res) => {
       filteredRows.reduce((t,r)=>t+(parseFloat(r[i])||0),0);
 
     let output =
-`📊 STN ${stnNumber} - ${selectedMonth.toUpperCase()} REPORT
+`📊 STN ${stnNumber} - ${selectedMonth.toUpperCase()} REPORT (YDS)
 ━━━━━━━━━━━━━━━━━━
 `;
 
     headers.forEach((h,i)=>{
       if(i===0) return;
-      const total=getTotal(i);
+
+      const total = toYds(getTotal(i));
+
       if(total!==0)
-        output+=`${h} : ${total.toLocaleString()}\n`;
+        output+=`${h} : ${total
+        .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
     });
 
     return res.json({ reply:output });
