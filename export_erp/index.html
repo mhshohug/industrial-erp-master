@@ -61,12 +61,9 @@ header{
  display:flex;
  flex-direction:column;
  gap:14px;
-
- /* 🔥 FIX */
  align-items:stretch;
 }
 
-/* Chat Bubble */
 .msg{
  max-width:70%;
  padding:16px 18px;
@@ -87,8 +84,6 @@ header{
  border:1px solid #475569;
 }
 
-/* ===== REPORT FULL WIDTH FIX ===== */
-
 .report{
  width:100% !important;
  max-width:100% !important;
@@ -103,22 +98,10 @@ header{
  margin-top:6px;
 }
 
-.report h3{
- text-align:center;
- margin-bottom:6px;
- font-size:14px;
-}
-
 .report table{
  width:100%;
  border-collapse:collapse;
  font-size:12px;
-}
-
-.report th{
- background:#f3f3f3;
- font-weight:bold;
- font-size:11px;
 }
 
 .report th,
@@ -128,15 +111,11 @@ header{
  text-align:center;
 }
 
-.report td:last-child{
+.report th{
+ background:#f3f3f3;
  font-weight:bold;
 }
 
-.report tbody tr:nth-child(even){
- background:#fafafa;
-}
-
-/* Suggestions */
 #suggestions{
  position:fixed;
  bottom:95px;
@@ -149,17 +128,12 @@ header{
  max-height:220px;
  overflow-y:auto;
  z-index:999;
- box-shadow:0 10px 25px rgba(0,0,0,.5);
 }
 
 .suggest-item{
  padding:12px;
  border-bottom:1px solid #334155;
  cursor:pointer;
-}
-
-.suggest-item:last-child{
- border-bottom:none;
 }
 
 .suggest-item:hover{
@@ -195,7 +169,6 @@ footer{
  padding:12px;
  display:flex;
  gap:10px;
- box-shadow:0 -4px 12px rgba(0,0,0,.4);
 }
 
 input{
@@ -252,17 +225,14 @@ button{
 var chat=document.getElementById("chat");
 var input=document.getElementById("q");
 var suggestions=document.getElementById("suggestions");
-var lastUserQuery="";
 
 function add(text,type){
-
  var d=document.createElement("div");
 
  if(text.includes("<table")){
    d.className="report";
    d.innerHTML=text;
- }
- else{
+ }else{
    d.className="msg "+type;
    text=text.replace(/\n/g,"<br>");
    d.innerHTML=text;
@@ -277,7 +247,6 @@ function send(){
  if(text==="") return;
 
  add(text,"user");
- lastUserQuery=text;
  input.value="";
  suggestions.style.display="none";
 
@@ -300,49 +269,37 @@ function quick(t){
  send();
 }
 
-var commands=[
-"totall","today",
-"cpb per day","jigger per day",
-"napthol per day","singing per day",
-"marcerise per day","bleach per day",
-"total dyeing"
-];
+/* ================= PRINT LAST BOT REPORT ================= */
+function printChat(){
 
-input.addEventListener("input",function(){
- var value=this.value.toLowerCase();
- suggestions.innerHTML="";
+ var items=document.querySelectorAll("#chat .report, #chat .bot");
+ if(items.length===0) return;
 
- if(value===""){
-  suggestions.style.display="none";
-  return;
- }
+ var last=items[items.length-1].innerHTML;
 
- var list=[];
- for(var i=0;i<commands.length;i++){
-  if(commands[i].indexOf(value)!==-1){
-   list.push(commands[i]);
-  }
- }
+ var win=window.open("","","width=900,height=700");
 
- if(list.length===0){
-  suggestions.style.display="none";
-  return;
- }
+ win.document.write(`
+ <html>
+ <head>
+ <title>Production Report</title>
+ <style>
+  @page{ size:A4 portrait; margin:8mm; }
+  body{ font-family:Arial; }
+  table{ width:100%; border-collapse:collapse; }
+  th,td{ border:1px solid #000; padding:5px; text-align:center; }
+  th{ background:#f2f2f2; }
+ </style>
+ </head>
+ <body>
+ ${last}
+ </body>
+ </html>
+ `);
 
- for(var j=0;j<list.length;j++){
-  var div=document.createElement("div");
-  div.className="suggest-item";
-  div.innerText=list[j];
-  div.onclick=function(){
-   input.value=this.innerText;
-   suggestions.style.display="none";
-   input.focus();
-  };
-  suggestions.appendChild(div);
- }
-
- suggestions.style.display="block";
-});
+ win.document.close();
+ win.print();
+}
 </script>
 
 </body>
