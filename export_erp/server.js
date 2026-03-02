@@ -454,7 +454,7 @@ noor cpb
     });
   }
 
-/* ===================== ANY MONTH PER DAY DYEING TABLE ===================== */
+/* ===================== ANY MONTH PER DAY DYEING (HTML TABLE) ===================== */
 
 const monthPerDayDyeingMatch = question.match(
 /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+dyeing$/
@@ -468,10 +468,11 @@ if (monthPerDayDyeingMatch) {
   };
 
   const selectedMonthIndex = months[monthPerDayDyeingMatch[1]];
+  const monthName = monthPerDayDyeingMatch[1].toUpperCase();
   const year = new Date().getFullYear();
   const daysInMonth = new Date(year, selectedMonthIndex+1, 0).getDate();
 
-  let lines = [];
+  let rowsHtml = "";
 
   let totalCPB = 0;
   let totalJigger = 0;
@@ -492,13 +493,6 @@ if (monthPerDayDyeingMatch) {
     },0) || 0;
   }
 
-  lines.push("------------------------------------------------------------");
-  lines.push(`|            ${monthPerDayDyeingMatch[1].toUpperCase()} DAILY DYEING                             |`);
-  lines.push("------------------------------------------------------------");
-  lines.push("");
-  lines.push("| DATE |   CPB   |  JIGGER  | EX-JIGGER | NAPTHOL | TOTAL |");
-  lines.push("|------|---------|----------|-----------|---------|-------|");
-
   for(let d=1; d<=daysInMonth; d++){
 
     const cpb = sumProcess("cpb", d);
@@ -514,31 +508,72 @@ if (monthPerDayDyeingMatch) {
     totalNapthol += napthol;
     overallTotal += dayTotal;
 
-    lines.push(
-`| ${String(d).padStart(2,"0")}   | `
-+ `${cpb.toString().padStart(7," ")} | `
-+ `${jigger.toString().padStart(8," ")} | `
-+ `${ex.toString().padStart(9," ")} | `
-+ `${napthol.toString().padStart(7," ")} | `
-+ `${dayTotal.toString().padStart(5," ")} |`
-    );
+    rowsHtml += `
+    <tr>
+      <td>${String(d).padStart(2,"0")}</td>
+      <td>${cpb.toLocaleString()}</td>
+      <td>${jigger.toLocaleString()}</td>
+      <td>${ex.toLocaleString()}</td>
+      <td>${napthol.toLocaleString()}</td>
+      <td><strong>${dayTotal.toLocaleString()}</strong></td>
+    </tr>`;
   }
 
-  lines.push("|------|---------|----------|-----------|---------|-------|");
-  lines.push(
-`| TOTAL| `
-+ `${totalCPB.toString().padStart(7," ")} | `
-+ `${totalJigger.toString().padStart(8," ")} | `
-+ `${totalEx.toString().padStart(9," ")} | `
-+ `${totalNapthol.toString().padStart(7," ")} | `
-+ `${overallTotal.toString().padStart(5," ")} |`
-  );
+  return res.json({
+    reply: `
+    <div style="background:#ffffff;padding:15px;border-radius:8px">
 
-  lines.push("------------------------------------------------------------");
-  lines.push(`OVERALL TOTAL : ${overallTotal.toLocaleString()} yds`);
+      <h3 style="text-align:center;margin-bottom:10px">
+        ${monthName} DAILY DYEING
+      </h3>
 
-  return res.json({ reply: lines.join("\n") });
+      <table style="
+        width:100%;
+        border-collapse:collapse;
+        font-size:14px;
+        text-align:center;
+      ">
+        <thead>
+          <tr style="background:#f3f3f3;font-weight:bold">
+            <th style="border:1px solid #ccc;padding:6px">DATE</th>
+            <th style="border:1px solid #ccc;padding:6px">CPB</th>
+            <th style="border:1px solid #ccc;padding:6px">JIGGER</th>
+            <th style="border:1px solid #ccc;padding:6px">EX-JIGGER</th>
+            <th style="border:1px solid #ccc;padding:6px">NAPTHOL</th>
+            <th style="border:1px solid #ccc;padding:6px">TOTAL</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+
+        <tfoot>
+          <tr style="background:#f9f9f9;font-weight:bold">
+            <td style="border:1px solid #ccc;padding:6px">TOTAL</td>
+            <td style="border:1px solid #ccc;padding:6px">${totalCPB.toLocaleString()}</td>
+            <td style="border:1px solid #ccc;padding:6px">${totalJigger.toLocaleString()}</td>
+            <td style="border:1px solid #ccc;padding:6px">${totalEx.toLocaleString()}</td>
+            <td style="border:1px solid #ccc;padding:6px">${totalNapthol.toLocaleString()}</td>
+            <td style="border:1px solid #ccc;padding:6px">${overallTotal.toLocaleString()}</td>
+          </tr>
+        </tfoot>
+
+      </table>
+
+      <div style="
+        margin-top:10px;
+        text-align:right;
+        font-weight:bold;
+      ">
+        OVERALL TOTAL : ${overallTotal.toLocaleString()} yds
+      </div>
+
+    </div>
+    `
+  });
 }
+    
   /* ===================== PER DAY ===================== */
 
   const perDayMatch=question.match(/(cpb|jigger|ex-jigger|exjigger|napthol|singing|marcerise|bleach|folding)\s*per\s*day/);
