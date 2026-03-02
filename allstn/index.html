@@ -121,6 +121,7 @@ body{
   background:#22c55e;
   color:white;
   font-size:15px;
+  cursor:pointer;
 }
 </style>
 </head>
@@ -129,17 +130,16 @@ body{
 
 <div id="titleBar">
   📊 All Stenter Report
-  <button id="printBtn" onclick="printChat()">🖨 Print</button>
+  <button id="printBtn">🖨 Print</button>
 </div>
 
 <div id="topBar">
-  <span class="cmd" onclick="quick('totall')">Totall</span>
-  <span class="cmd" onclick="quick('totall stn')">Totall STN</span>
-  <span class="cmd" onclick="quick('stn 1')">Stn 1</span>
-  <span class="cmd" onclick="quick('stn 2')">Stn 2</span>
-  <span class="cmd" onclick="quick('stn 3')">Stn 3</span>
-  <span class="cmd" onclick="quick('stn 4')">Stn 4</span>
-  <span class="cmd" onclick="quick('stn 5')">Stn 5</span>
+  <span class="cmd" onclick="quick('mar')">Mar</span>
+  <span class="cmd" onclick="quick('total mar')">Total Mar</span>
+  <span class="cmd" onclick="quick('1 mar')">1 Mar</span>
+  <span class="cmd" onclick="quick('stn 1 mar')">STN 1</span>
+  <span class="cmd" onclick="quick('stn 2 mar')">STN 2</span>
+  <span class="cmd" onclick="quick('stn 3 mar')">STN 3</span>
 </div>
 
 <div id="chat"></div>
@@ -152,7 +152,8 @@ body{
 <script>
 const chat = document.getElementById("chat");
 const text = document.getElementById("text");
-const send = document.getElementById("send");
+const sendBtn = document.getElementById("send");
+const printBtn = document.getElementById("printBtn");
 
 let lastUserQuery = "";
 
@@ -176,7 +177,7 @@ async function sendMessage(){
   lastUserQuery = question;
 
   addMessage(question, "user");
-  text.value="";
+  text.value = "";
 
   const loadingDiv = document.createElement("div");
   loadingDiv.className="message bot";
@@ -200,21 +201,22 @@ async function sendMessage(){
   }
 }
 
-send.onclick = sendMessage;
+/* ✅ SEND FIX */
+sendBtn.addEventListener("click", sendMessage);
 
-text.addEventListener("keypress", function(e){
-  if(e.key==="Enter"){
+text.addEventListener("keydown", function(e){
+  if(e.key === "Enter"){
+    e.preventDefault();
     sendMessage();
   }
 });
 
-function printChat(){
+/* ✅ PRINT ONLY LAST REPORT */
+printBtn.addEventListener("click", function(){
 
   const botMessages = document.querySelectorAll(".bot");
-
   if(botMessages.length === 0) return;
 
-  // ✅ শুধু শেষ bot message
   const lastReport = botMessages[botMessages.length - 1].innerHTML;
 
   const today = new Date();
@@ -229,12 +231,17 @@ function printChat(){
       <style>
         body{ font-family:Arial; padding:40px; }
         .header{text-align:center;margin-bottom:20px;}
-        .company{font-size:24px;font-weight:bold;letter-spacing:1px;}
+        .company{font-size:24px;font-weight:bold;}
         .address{font-size:14px;color:#555;margin-top:4px;}
         .erp{font-size:16px;font-weight:bold;margin-top:6px;}
         .line{height:2px;background:#000;width:70%;margin:15px auto;}
         .meta{text-align:left;margin-top:10px;}
-        .footer{margin-top:40px;font-size:12px;display:flex;justify-content:space-between;}
+        .footer{
+          margin-top:60px;
+          display:flex;
+          justify-content:space-between;
+          font-size:13px;
+        }
       </style>
     </head>
     <body>
@@ -252,7 +259,6 @@ function printChat(){
     </div>
 
     <hr>
-
     ${lastReport}
 
     <div class="footer">
@@ -271,63 +277,8 @@ function printChat(){
 
   newWindow.document.close();
   newWindow.print();
-}
+});
 
-  const today = new Date();
-  const dateTime = today.toLocaleString();
-
-  const newWindow = window.open("", "", "width=900,height=700");
-
-  newWindow.document.write(`
-    <html>
-    <head>
-      <title>ISO Production Report</title>
-      <style>
-        body{ font-family:Arial; padding:40px; }
-        .header{text-align:center;margin-bottom:20px;}
-        .company{font-size:24px;font-weight:bold;letter-spacing:1px;}
-        .address{font-size:14px;color:#555;margin-top:4px;}
-        .erp{font-size:16px;font-weight:bold;margin-top:6px;}
-        .line{height:2px;background:#000;width:70%;margin:15px auto;}
-        .meta{text-align:left;margin-top:10px;}
-        .footer{margin-top:40px;font-size:12px;display:flex;justify-content:space-between;}
-      </style>
-    </head>
-    <body>
-
-    <div class="header">
-      <div class="company">Sukhy Dyeing and Finishing Mills LTD.</div>
-      <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
-      <div class="erp">Sukhy ERP</div>
-      <div class="line"></div>
-    </div>
-
-    <div class="meta">
-      <b>Query:</b> ${lastUserQuery}<br>
-      <b>Generated:</b> ${dateTime}
-    </div>
-
-    <hr>
-
-    ${reportContent}
-
-    <div class="footer">
-      <div>
-        Prepared By: Ruhul Amin <br>
-        Developed By: Mehedi Hasan
-      </div>
-      <div>
-        Signature: ___________________________
-      </div>
-    </div>
-
-    </body>
-    </html>
-  `);
-
-  newWindow.document.close();
-  newWindow.print();
-}
 </script>
 
 </body>
