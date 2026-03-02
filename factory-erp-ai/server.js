@@ -20,27 +20,56 @@ const GID_MAP = {
     rolling: "1498627234"
 };
 
-// ইউটিলিটি ফাংশন
-const formatHeader = (title) => {
-    const line = "━".repeat(35);
-    return `${line}\n   📌 ${title}\n${line}`;
+// HTML টেমপ্লেট ফাংশন
+const htmlWrapper = (title, content) => {
+    return `
+    <style>
+        .erp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+        .erp-table th {
+            background: #2d3748;
+            color: white;
+            padding: 6px 4px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .erp-table td {
+            padding: 4px;
+            border: 1px solid #cbd5e0;
+        }
+        .erp-table tr:nth-child(even) {
+            background: #f7fafc;
+        }
+        .positive { color: #2f855a; font-weight: bold; }
+        .negative { color: #c53030; font-weight: bold; }
+        .header-small {
+            font-size: 13px;
+            font-weight: bold;
+            margin: 2px 0 5px 0;
+            color: #2d3748;
+        }
+        .summary-box {
+            background: #edf2f7;
+            padding: 5px;
+            margin-top: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 3px;
+        }
+    </style>
+    <div class="header-small">📊 ${title}</div>
+    ${content}
+    `;
 };
 
 const formatNumber = (num) => {
     return (num || 0).toLocaleString();
-};
-
-const formatDate = (date) => {
-    return moment(date).format("DD-MMM-YYYY").toUpperCase();
-};
-
-const formatStatus = (diff) => {
-    const absDiff = Math.abs(diff);
-    if (diff >= 0) {
-        return `✅ Extra: ${formatNumber(absDiff)} yds`;
-    } else {
-        return `⚠️ Short: ${formatNumber(absDiff)} yds`;
-    }
 };
 
 async function fetchSheet(gid) {
@@ -105,14 +134,6 @@ const isTotalQuery = /\btotall?\b/.test(q);
 const sheets=await Promise.all(Object.values(GID_MAP).map(fetchSheet));
 const [grey,sing,marc,cpb,jet,jig,roll]=sheets;
 
-const getRollingBySill=(sill)=>{
-return roll.reduce((a,r)=>(
-(r[1]||"").trim()===sill
-? a+(parseFloat((r[7]||"").replace(/,/g,''))||0)
-: a
-),0);
-};
-
 // ================= পার্টি সার্চ =================
 function normalizeName(str){
     return (str||"").toLowerCase().replace(/[\s.\-]/g,'').trim();
@@ -133,26 +154,37 @@ if(!q.match(/\d/) && q.length>=2){
         let rows=grey.filter(r=>normalizeName(r[3])===normalizeName(bestMatch));
         let last10=rows.slice(-10);
 
-        let reply = `${formatHeader(bestMatch.toUpperCase())}\n\n`;
-
+        let tableRows = '';
         last10.forEach(r=>{
             let lot=parseFloat((r[6]||"").replace(/,/g,''))||0;
-            let rolling=getRollingBySill((r[2]||"").trim());
-            let diff=rolling-lot;
+            let rolling = roll.reduce((a,rr)=> (rr[1]||"").trim()=== (r[2]||"").trim() ? a+(parseFloat((rr[7]||"").replace(/,/g,''))||0) : a,0);
+            let diff = rolling - lot;
+            let diffClass = diff >= 0 ? 'positive' : 'negative';
+            let diffSign = diff >= 0 ? '+' : '';
 
-            reply += `🔹 Sill ${r[2]} | ${r[4]}\n`;
-            reply += `   📦 Lot: ${formatNumber(lot)} yds\n`;
-            reply += `   ✅ Roll: ${formatNumber(rolling)} yds\n`;
-            reply += `   📊 ${formatStatus(diff)}\n\n`;
+            tableRows += `
+            <tr>
+                <td><b>${r[2]}</b></td>
+                <td>${r[4]}</td>
+                <td>${formatNumber(lot)}</td>
+                <td>${formatNumber(rolling)}</td>
+                <td class="${diffClass}">${diffSign}${formatNumber(Math.abs(diff))}</td>
+            </tr>`;
         });
 
-        reply += `━━━━━━━━━━━━━━━━\n📊 Last ${last10.length} of ${rows.length}`;
+        let html = htmlWrapper(`${bestMatch} - Last 10 Lots`, `
+            <table class="erp-table">
+                <tr><th>Sill</th><th>Quality</th><th>Lot</th><th>Roll</th><th>Diff</th></tr>
+                ${tableRows}
+            </table>
+            <div class="summary-box">Total: ${rows.length} entries | Showing last 10</div>
+        `);
 
-        return res.json({reply});
+        return res.json({reply: html});
     }
 }
 
-// ===== তারিখ সার্চ =====
+// ===== তারিখ ও সেকশন =====
 const dateInput=getParsedDate(q);
 
 if(dateInput && !q.match(/sill\s*(\d+)/) && !q.match(/^\d+$/)){
@@ -189,18 +221,28 @@ sillMap[sNum].val+=val;
 
 Object.keys(sillMap).forEach(s=>{
     let d=sillMap[s];
-    details.push(`🔹 Sill ${s} | ${d.party}\n   📦 Lot: ${formatNumber(d.lot)} yds\n   🎨 ${targetKey.toUpperCase()}: ${formatNumber(d.val)} yds`);
+    details.push(`
+    <tr>
+        <td><b>${s}</b></td>
+        <td>${d.party}</td>
+        <td>${formatNumber(d.lot)}</td>
+        <td>${formatNumber(d.val)}</td>
+    </tr>`);
     total+=d.val;
 });
 
 if(details.length){
-let reply = `${formatHeader(`${targetKey.toUpperCase()} - ${dateInput}`)}\n\n`;
-reply += details.join("\n\n");
-reply += `\n\n━━━━━━━━━━━━━━━━\n📍 Total: ${formatNumber(total)} yds`;
-return res.json({reply});
+    let html = htmlWrapper(`${targetKey.toUpperCase()} - ${dateInput}`, `
+        <table class="erp-table">
+            <tr><th>Sill</th><th>Party</th><th>Lot</th><th>${targetKey}</th></tr>
+            ${details.join('')}
+        </table>
+        <div class="summary-box">📍 Total: ${formatNumber(total)} yds</div>
+    `);
+    return res.json({reply: html});
 }
 
-return res.json({reply:`${formatHeader("No Data")}\n\n📅 No data for ${targetKey} on ${dateInput}`});
+return res.json({reply: `No data for ${targetKey} on ${dateInput}`});
 }
 
 // দৈনিক সামারি
@@ -215,12 +257,20 @@ const marceriseVal = dSum(marc,8);
 const rollingVal = dSum(roll,7);
 const totalDyeing = cVal + jVal + jgVal;
 
-let reply = `${formatHeader(`Daily - ${dateInput}`)}\n\n`;
-reply += `🎨 Pre:\n🔹 Sing: ${formatNumber(singingVal)}\n🔹 Marc: ${formatNumber(marceriseVal)}\n\n`;
-reply += `🎨 Dye:\n🔹 CPB: ${formatNumber(cVal)}\n🔹 Jet: ${formatNumber(jVal)}\n🔹 Jig: ${formatNumber(jgVal)}\n`;
-reply += `━━━━━━━━━━━━━━━━\n📍 Dye Total: ${formatNumber(totalDyeing)}\n✅ Rolling: ${formatNumber(rollingVal)}`;
+let html = htmlWrapper(`Daily Summary - ${dateInput}`, `
+    <table class="erp-table">
+        <tr><th>Section</th><th>Yards</th></tr>
+        <tr><td>Singing</td><td>${formatNumber(singingVal)}</td></tr>
+        <tr><td>Marcerise</td><td>${formatNumber(marceriseVal)}</td></tr>
+        <tr><td>CPB</td><td>${formatNumber(cVal)}</td></tr>
+        <tr><td>Jet</td><td>${formatNumber(jVal)}</td></tr>
+        <tr><td>Jigger</td><td>${formatNumber(jgVal)}</td></tr>
+        <tr><td>Rolling</td><td>${formatNumber(rollingVal)}</td></tr>
+    </table>
+    <div class="summary-box">📍 Total Dyeing: ${formatNumber(totalDyeing)} yds</div>
+`);
 
-return res.json({reply});
+return res.json({reply: html});
 }
 
 
@@ -230,7 +280,7 @@ if(sMatch && !q.includes("total")){
 
 const sill=sMatch[1];
 const gRow=grey.find(r=>(r[2]||"").trim()===sill);
-if(!gRow) return res.json({reply:`${formatHeader("Not Found")}\n\n❌ Sill ${sill} not found.`});
+if(!gRow) return res.json({reply:`Sill ${sill} not found.`});
 
 const getVal=(rows,s,sIdx,vIdx)=>
 rows.reduce((a,r)=>r[sIdx]===s
@@ -249,18 +299,28 @@ roll:getVal(roll,sill,1,7)
 const lotSize=parseFloat((gRow[6]||"").replace(/,/g,''))||0;
 const totalDyeing = data.cpb + data.jet + data.jig;
 const diff = lotSize - data.roll;
+const diffClass = diff <= 0 ? 'positive' : 'negative';
+const diffText = diff <= 0 ? 'Extra' : 'Short';
 
-let reply = `${formatHeader(`Sill ${sill}`)}\n\n`;
-reply += `👤 ${gRow[3]}\n📜 ${gRow[4]}\n📦 Lot: ${formatNumber(lotSize)}\n\n`;
-reply += `━━━━━━━━━━━━━━━━\n`;
-reply += `🎨 Pre:\n🔹 Sing: ${formatNumber(data.sing)}\n🔹 Marc: ${formatNumber(data.marc)}\n\n`;
-reply += `🎨 Dye:\n🔹 CPB: ${formatNumber(data.cpb)}\n🔹 Jet: ${formatNumber(data.jet)}\n🔹 Jig: ${formatNumber(data.jig)}\n`;
-reply += `━━━━━━━━━━━━━━━━\n`;
-reply += `📍 Dye Total: ${formatNumber(totalDyeing)}\n✅ Roll: ${formatNumber(data.roll)}\n`;
-reply += `━━━━━━━━━━━━━━━━\n`;
-reply += `📊 ${diff<=0?"✅ Extra":"⚠️ Short"}: ${formatNumber(Math.abs(diff))}`;
+let html = htmlWrapper(`Sill ${sill} Report`, `
+    <div style="margin-bottom:5px"><b>Party:</b> ${gRow[3]} | <b>Quality:</b> ${gRow[4]}</div>
+    <table class="erp-table">
+        <tr><th>Process</th><th>Yards</th></tr>
+        <tr><td>Lot Size</td><td><b>${formatNumber(lotSize)}</b></td></tr>
+        <tr><td>Singing</td><td>${formatNumber(data.sing)}</td></tr>
+        <tr><td>Marcerise</td><td>${formatNumber(data.marc)}</td></tr>
+        <tr><td>CPB</td><td>${formatNumber(data.cpb)}</td></tr>
+        <tr><td>Jet</td><td>${formatNumber(data.jet)}</td></tr>
+        <tr><td>Jigger</td><td>${formatNumber(data.jig)}</td></tr>
+        <tr><td>Rolling</td><td><b>${formatNumber(data.roll)}</b></td></tr>
+    </table>
+    <div class="summary-box">
+        📍 Dyeing: ${formatNumber(totalDyeing)} yds<br>
+        📊 ${diffText}: ${formatNumber(Math.abs(diff))} yds
+    </div>
+`);
 
-return res.json({reply});
+return res.json({reply: html});
 }
 
 // ===== লট সার্চ =====
@@ -272,7 +332,7 @@ if(lotMatch && !q.includes("sill")){
     const gRow = grey.find(r => (r[6]||"").replace(/,/g,'').trim() === lotNumber);
 
     if(!gRow)
-        return res.json({reply:`${formatHeader("Not Found")}\n\n❌ Lot ${lotNumber} not found.`});
+        return res.json({reply:`Lot ${lotNumber} not found.`});
 
     const sill = gRow[2];
     const party = gRow[3];
@@ -286,18 +346,24 @@ if(lotMatch && !q.includes("sill")){
     ,0);
 
     const diff = rolling - lotSize;
+    const diffClass = diff >= 0 ? 'positive' : 'negative';
+    const diffText = diff >= 0 ? 'Extra' : 'Short';
 
-    let reply = `${formatHeader(`Lot ${lotNumber}`)}\n\n`;
-    reply += `🏷️ ${party}\n🔹 Sill: ${sill}\n📜 ${quality}\n`;
-    reply += `━━━━━━━━━━━━━━━━\n`;
-    reply += `📦 Lot: ${formatNumber(lotSize)}\n✅ Roll: ${formatNumber(rolling)}\n`;
-    reply += `━━━━━━━━━━━━━━━━\n`;
-    reply += `📊 ${diff>=0?"✅ Extra":"⚠️ Short"}: ${formatNumber(Math.abs(diff))}`;
+    let html = htmlWrapper(`Lot ${lotNumber}`, `
+        <table class="erp-table">
+            <tr><th>Party</th><td>${party}</td></tr>
+            <tr><th>Sill</th><td>${sill}</td></tr>
+            <tr><th>Quality</th><td>${quality}</td></tr>
+            <tr><th>Lot Size</th><td>${formatNumber(lotSize)} yds</td></tr>
+            <tr><th>Rolling</th><td>${formatNumber(rolling)} yds</td></tr>
+            <tr><th>Difference</th><td class="${diffClass}">${diffText}: ${formatNumber(Math.abs(diff))} yds</td></tr>
+        </table>
+    `);
 
-    return res.json({reply});
+    return res.json({reply: html});
 }
 
-// ===== মাসিক ডাইং রিপোর্ট =====
+// ===== মাসিক ডাইং =====
 const monthOnlyMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
 
 if(monthOnlyMatch && q.includes("dyeing")){
@@ -320,26 +386,28 @@ if(monthOnlyMatch && q.includes("dyeing")){
     const jiggerTotal = filterByMonth(jig,7);
     const grandTotal = cpbTotal + jetTotal + jiggerTotal;
 
-    if(grandTotal === 0){
-        return res.json({reply:`${formatHeader("No Data")}\n\n📅 No dyeing for ${monthName.toUpperCase()}`});
-    }
+    let html = htmlWrapper(`${monthName.toUpperCase()} Dyeing Report`, `
+        <table class="erp-table">
+            <tr><th>Section</th><th>Yards</th></tr>
+            <tr><td>CPB</td><td>${formatNumber(cpbTotal)}</td></tr>
+            <tr><td>Jet</td><td>${formatNumber(jetTotal)}</td></tr>
+            <tr><td>Jigger</td><td>${formatNumber(jiggerTotal)}</td></tr>
+        </table>
+        <div class="summary-box">📍 Total: ${formatNumber(grandTotal)} yds</div>
+    `);
 
-    let reply = `${formatHeader(`${monthName.toUpperCase()} Dyeing`)}\n\n`;
-    reply += `🔹 CPB: ${formatNumber(cpbTotal)}\n🔹 Jet: ${formatNumber(jetTotal)}\n🔹 Jig: ${formatNumber(jiggerTotal)}\n`;
-    reply += `━━━━━━━━━━━━━━━━\n📍 Total: ${formatNumber(grandTotal)}`;
-
-    return res.json({reply});
+    return res.json({reply: html});
 }
 
-// ===== গ্র্যান্ড টোটাল / মাসিক ব্রেকডাউন =====
+// ===== গ্র্যান্ড টোটাল =====
 if(isTotalQuery){
 
     if(q.includes("dyeing")){
 
         const sectionMap = {
-            cpb: {rows: cpb, idx: 6},
-            jet: {rows: jet, idx: 6},
-            jigger: {rows: jig, idx: 7}
+            cpb: {rows: cpb, idx: 6, name: 'CPB'},
+            jet: {rows: jet, idx: 6, name: 'Jet'},
+            jigger: {rows: jig, idx: 7, name: 'Jigger'}
         };
 
         let monthData = {};
@@ -359,7 +427,6 @@ if(isTotalQuery){
                 if(!monthData[monthKey]){
                     monthData[monthKey] = {cpb:0, jet:0, jigger:0};
                 }
-
                 monthData[monthKey][sec] += val;
             });
         });
@@ -367,23 +434,28 @@ if(isTotalQuery){
         const sortedMonths = Object.keys(monthData)
             .sort((a,b)=>moment(a,"MMM-YYYY")-moment(b,"MMM-YYYY"));
 
-        if(!sortedMonths.length)
-            return res.json({reply:`${formatHeader("No Data")}\n\nNo dyeing data found.`});
-
-        let reply = `${formatHeader("Monthly Dyeing")}\n`;
-
+        let tableRows = '';
         sortedMonths.forEach(m=>{
             const data = monthData[m];
             const total = data.cpb + data.jet + data.jigger;
-
-            reply += `\n📅 ${m}\n`;
-            reply += `   CPB: ${formatNumber(data.cpb)}\n`;
-            reply += `   Jet: ${formatNumber(data.jet)}\n`;
-            reply += `   Jig: ${formatNumber(data.jigger)}\n`;
-            reply += `   📍 Total: ${formatNumber(total)}\n`;
+            tableRows += `
+            <tr>
+                <td><b>${m}</b></td>
+                <td>${formatNumber(data.cpb)}</td>
+                <td>${formatNumber(data.jet)}</td>
+                <td>${formatNumber(data.jigger)}</td>
+                <td><b>${formatNumber(total)}</b></td>
+            </tr>`;
         });
 
-        return res.json({reply});
+        let html = htmlWrapper('Monthly Dyeing Breakdown', `
+            <table class="erp-table">
+                <tr><th>Month</th><th>CPB</th><th>Jet</th><th>Jigger</th><th>Total</th></tr>
+                ${tableRows}
+            </table>
+        `);
+
+        return res.json({reply: html});
     }
 
     // Full Grand Total
@@ -401,20 +473,27 @@ if(isTotalQuery){
         r: tSum(roll,7)
     };
 
-    let reply = `${formatHeader("Grand Total")}\n\n`;
-    reply += `🎨 Pre:\n🔹 Sing: ${formatNumber(t.s)}\n🔹 Marc: ${formatNumber(t.m)}\n\n`;
-    reply += `🎨 Dye:\n🔹 CPB: ${formatNumber(t.c)}\n🔹 Jet: ${formatNumber(t.j)}\n🔹 Jig: ${formatNumber(t.jg)}\n`;
-    reply += `━━━━━━━━━━━━━━━━\n✅ Rolling: ${formatNumber(t.r)}`;
+    let html = htmlWrapper('Grand Total All Time', `
+        <table class="erp-table">
+            <tr><th>Section</th><th>Yards</th></tr>
+            <tr><td>Singing</td><td>${formatNumber(t.s)}</td></tr>
+            <tr><td>Marcerise</td><td>${formatNumber(t.m)}</td></tr>
+            <tr><td>CPB</td><td>${formatNumber(t.c)}</td></tr>
+            <tr><td>Jet</td><td>${formatNumber(t.j)}</td></tr>
+            <tr><td>Jigger</td><td>${formatNumber(t.jg)}</td></tr>
+            <tr><td>Rolling</td><td><b>${formatNumber(t.r)}</b></td></tr>
+        </table>
+    `);
 
-    return res.json({reply});
+    return res.json({reply: html});
 }
 
-// ===== রোলিং ইন্সপেকশন (HTML - ছোট সাইজ) =====
+// ===== রোলিং ইন্সপেকশন =====
 if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
 
     const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
     if(!monthMatch)
-        return res.json({reply:`${formatHeader("Error")}\n\nPlease specify month (e.g., feb rolling inspection)`});
+        return res.json({reply:`Please specify month (e.g., feb rolling inspection)`});
 
     const monthName = monthMatch[1];
     const monthIndex = moment().month(monthName).month();
@@ -451,52 +530,28 @@ if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
 
     rows.sort((a,b)=>a.sill - b.sill);
 
-    // ছোট HTML টেবিল - চ্যাটের ভিতরে থাকবে
-    let html = `
-    <style>
-        .ins-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-            margin: 5px 0;
-        }
-        .ins-table th {
-            background: #2d3748;
-            color: white;
-            padding: 4px;
-            font-size: 11px;
-        }
-        .ins-table td {
-            padding: 3px 4px;
-            border: 1px solid #cbd5e0;
-        }
-        .pos { color: #2f855a; font-weight: bold; }
-        .neg { color: #c53030; font-weight: bold; }
-        .title-small { font-size: 13px; font-weight: bold; margin: 2px 0; }
-    </style>
-
-    <div class="title-small">📊 ${monthName.toUpperCase()} ROLLING INSPECTION</div>
-    <table class="ins-table">
-        <tr><th>Sill</th><th>Party</th><th>Lot</th><th>Roll</th><th>Diff</th><th>%</th></tr>
-    `;
-
+    let tableRows = '';
     rows.forEach(r => {
-        const diffClass = r.diff >= 0 ? 'pos' : 'neg';
+        const diffClass = r.diff >= 0 ? 'positive' : 'negative';
         const diffSign = r.diff >= 0 ? '+' : '';
         
-        html += `
+        tableRows += `
         <tr>
             <td><b>${r.sill}</b></td>
-            <td style="text-align:left">${r.party.substring(0,12)}</td>
-            <td>${r.lot.toLocaleString()}</td>
-            <td>${r.rollingTotal.toLocaleString()}</td>
-            <td class="${diffClass}">${diffSign}${r.diff.toLocaleString()}</td>
+            <td>${r.party.substring(0,15)}</td>
+            <td>${formatNumber(r.lot)}</td>
+            <td>${formatNumber(r.rollingTotal)}</td>
+            <td class="${diffClass}">${diffSign}${formatNumber(Math.abs(r.diff))}</td>
             <td class="${diffClass}">${r.percent.toFixed(1)}%</td>
-        </tr>
-        `;
+        </tr>`;
     });
 
-    html += `</table>`;
+    let html = htmlWrapper(`${monthName.toUpperCase()} Rolling Inspection`, `
+        <table class="erp-table">
+            <tr><th>Sill</th><th>Party</th><th>Lot</th><th>Roll</th><th>Diff</th><th>%</th></tr>
+            ${tableRows}
+        </table>
+    `);
 
     return res.json({reply: html});
 }
@@ -534,7 +589,7 @@ let sill=sMatch[0];
 let g=grey.find(r=>(r[2]||"").trim()===sill);
 let party=g?g[3]:"Unknown";
 
-let total=0,lines=[];
+let total=0,tableRows='';
 
 rows.forEach(r=>{
 if((r[1]||"").trim()===sill){
@@ -544,17 +599,21 @@ let vIdx=(sectionKey==="singing"||sectionKey==="marcerise")?8:(sectionKey==="jet
 let val=parseFloat((r[vIdx]||"").replace(/,/g,''))||0;
 if(val<=0) return;
 
-lines.push(`🔹 ${date} — ${formatNumber(val)}`);
+tableRows += `<tr><td>${date}</td><td>${formatNumber(val)}</td></tr>`;
 total+=val;
 }
 });
 
-if(lines.length){
-let reply = `${formatHeader(`${sectionKey} - Sill ${sill}`)}\n\n`;
-reply += `👤 ${party}\n\n`;
-reply += lines.join("\n");
-reply += `\n\n━━━━━━━━━━━━━━━━\n📍 Total: ${formatNumber(total)}`;
-return res.json({reply});
+if(tableRows){
+let html = htmlWrapper(`${sectionKey} History - Sill ${sill}`, `
+    <div style="margin-bottom:5px"><b>Party:</b> ${party}</div>
+    <table class="erp-table">
+        <tr><th>Date</th><th>Yards</th></tr>
+        ${tableRows}
+    </table>
+    <div class="summary-box">📍 Total: ${formatNumber(total)} yds</div>
+`);
+return res.json({reply: html});
 }
 }
 
@@ -564,12 +623,12 @@ return res.json({reply});
 if(q.includes("per day")){
 
     const sectionMap = {
-        singing: {rows: sing, idx: 8, name: "Sing"},
-        marcerise: {rows: marc, idx: 8, name: "Marc"},
+        singing: {rows: sing, idx: 8, name: "Singing"},
+        marcerise: {rows: marc, idx: 8, name: "Marcerise"},
         cpb: {rows: cpb, idx: 6, name: "CPB"},
         jet: {rows: jet, idx: 6, name: "Jet"},
-        jigger: {rows: jig, idx: 7, name: "Jig"},
-        rolling: {rows: roll, idx: 7, name: "Roll"}
+        jigger: {rows: jig, idx: 7, name: "Jigger"},
+        rolling: {rows: roll, idx: 7, name: "Rolling"}
     };
 
     const sectionKey = Object.keys(sectionMap).find(s => q.includes(s));
@@ -602,26 +661,44 @@ if(q.includes("per day")){
             .sort((a,b)=>moment(a,"DD-MMM-YYYY") - moment(b,"DD-MMM-YYYY"));
 
         if(!sortedDates.length)
-            return res.json({reply:`${formatHeader("No Data")}\n\nNo data for this month.`});
+            return res.json({reply:`No data found.`});
 
         let total = 0;
+        let tableRows = '';
         let titleMonth = monthMatch ? monthMatch[1].toUpperCase()+" " : "";
-
-        let reply = `${formatHeader(`${titleMonth}${name} Per Day`)}\n\n`;
 
         sortedDates.forEach((d,i)=>{
             total += dayMap[d];
-            reply += `${i+1}. ${d} — ${formatNumber(dayMap[d])}\n`;
+            tableRows += `<tr><td>${d}</td><td>${formatNumber(dayMap[d])}</td></tr>`;
         });
 
-        reply += `\n━━━━━━━━━━━━━━━━\n📊 Total: ${formatNumber(total)}`;
+        let html = htmlWrapper(`${titleMonth}${name} Per Day`, `
+            <table class="erp-table">
+                <tr><th>Date</th><th>Yards</th></tr>
+                ${tableRows}
+            </table>
+            <div class="summary-box">📍 Total: ${formatNumber(total)} yds</div>
+        `);
 
-        return res.json({reply});
+        return res.json({reply: html});
     }
 }
 
 // ===== ফাইনাল =====
-res.json({reply:`${formatHeader("ERP Search")}\n\nTry:\n🔹 590\n🔹 3 feb cpb\n🔹 RB Design\n🔹 feb dyeing\n🔹 12345 (lot)\n🔹 total dyeing\n🔹 feb rolling inspection`});
+res.json({reply: `
+    ${htmlWrapper('ERP Search', `
+        <div style="padding:5px">
+            <b>Try these searches:</b><br><br>
+            🔹 Sill: 590<br>
+            🔹 Date+Section: 3 feb cpb<br>
+            🔹 Party: RB Design<br>
+            🔹 Month: feb dyeing<br>
+            🔹 Lot: 12345<br>
+            🔹 Total: total dyeing<br>
+            🔹 Inspection: feb rolling inspection
+        </div>
+    `)}
+`});
 
 });
 
