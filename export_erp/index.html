@@ -63,8 +63,9 @@ header{
  gap:14px;
 }
 
+/* Chat Bubble */
 .msg{
- max-width:88%;
+ max-width:70%;
  padding:16px 18px;
  border-radius:18px;
  line-height:1.5;
@@ -81,6 +82,50 @@ header{
  align-self:flex-start;
  background:var(--bot);
  border:1px solid #475569;
+}
+
+/* ===== REPORT CARD (Screen Only) ===== */
+.report{
+ width:100%;
+ background:#ffffff;
+ color:#000;
+ border-radius:14px;
+ padding:20px;
+ box-sizing:border-box;
+ box-shadow:0 10px 30px rgba(0,0,0,.4);
+ overflow-x:auto;
+ margin-top:8px;
+}
+
+.report h3{
+ text-align:center;
+ margin-bottom:12px;
+}
+
+.report table{
+ width:100%;
+ border-collapse:collapse;
+ font-size:14px;
+}
+
+.report th{
+ background:#f3f3f3;
+ font-weight:bold;
+}
+
+.report th,
+.report td{
+ border:1px solid #ccc;
+ padding:8px;
+ text-align:center;
+}
+
+.report td:last-child{
+ font-weight:bold;
+}
+
+.report tbody tr:nth-child(even){
+ background:#fafafa;
 }
 
 #suggestions{
@@ -200,24 +245,25 @@ var input=document.getElementById("q");
 var suggestions=document.getElementById("suggestions");
 var lastUserQuery="";
 
-var commands=[
-"totall","today",
-"cpb per day","jigger per day",
-"napthol per day","singing per day",
-"marcerise per day","bleach per day",
-"total dyeing"
-];
-
 function add(text,type){
+
  var d=document.createElement("div");
- d.className="msg "+type;
- text=text.replace(/\n/g,"<br>");
- d.innerHTML=text;
+
+ // 🔥 Detect Report (HTML Table)
+ if(text.includes("<table")){
+   d.className="report";
+   d.innerHTML=text;
+ }
+ else{
+   d.className="msg "+type;
+   text=text.replace(/\n/g,"<br>");
+   d.innerHTML=text;
+ }
+
  chat.appendChild(d);
  chat.scrollTop=chat.scrollHeight;
 }
-
-function send(){
+ function send(){
  var text=input.value.trim();
  if(text==="") return;
 
@@ -244,6 +290,14 @@ function quick(t){
  input.value=t;
  send();
 }
+
+var commands=[
+"totall","today",
+"cpb per day","jigger per day",
+"napthol per day","singing per day",
+"marcerise per day","bleach per day",
+"total dyeing"
+];
 
 input.addEventListener("input",function(){
  var value=this.value.toLowerCase();
@@ -281,42 +335,96 @@ input.addEventListener("input",function(){
  suggestions.style.display="block";
 });
 
-/* CORPORATE PRINT */
+/* ===================== CORPORATE PRINT ===================== */
 function printChat(){
- var bots=document.querySelectorAll(".bot");
+
+ var bots=document.querySelectorAll(".bot, .report");
  if(bots.length===0) return;
 
  var lastReport=bots[bots.length-1].innerHTML;
  var now=new Date().toLocaleString();
 
  var win=window.open("","","width=900,height=700");
+
  win.document.write(`
   <html>
   <head>
    <title>Production Report</title>
    <style>
-    body{font-family:Arial;padding:40px;}
-    .company{font-size:30px;font-weight:bold;text-align:center;}
-    .address{text-align:center;font-size:14px;margin-top:5px;}
-    .title{text-align:center;font-size:18px;font-weight:bold;margin-top:10px;}
-    .meta{margin-top:15px;font-size:14px;}
-    .footer{margin-top:50px;font-size:13px;display:flex;justify-content:space-between;}
+    body{
+      font-family:Arial;
+      padding:40px;
+    }
+
+    .company{
+      font-size:30px;
+      font-weight:bold;
+      text-align:center;
+    }
+
+    .address{
+      text-align:center;
+      font-size:14px;
+      margin-top:5px;
+    }
+
+    .title{
+      text-align:center;
+      font-size:18px;
+      font-weight:bold;
+      margin-top:10px;
+    }
+
+    .meta{
+      margin-top:15px;
+      font-size:14px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+      margin-top:15px;
+    }
+
+    th, td{
+      border:1px solid #000;
+      padding:6px;
+      text-align:center;
+    }
+
+    th{
+      background:#f2f2f2;
+    }
+
+    .footer{
+      margin-top:50px;
+      font-size:13px;
+      display:flex;
+      justify-content:space-between;
+    }
    </style>
   </head>
   <body>
+
    <div class="company">Sukhy Dyeing & Finishing Mills Ltd.</div>
    <div class="address">Kurerpar, Sekherchor, Narsingdi.</div>
    <div class="title">34" Production Report</div>
    <div class="meta"><b>Generated:</b> ${now}</div>
+
    <hr>
+
    ${lastReport}
+
    <div class="footer">
      <div>Prepared By: Mehedi Hasan<br>Developed By: Mehedi Hasan</div>
      <div>Signature: ________________________</div>
    </div>
+
   </body>
   </html>
  `);
+
  win.document.close();
  win.print();
 }
