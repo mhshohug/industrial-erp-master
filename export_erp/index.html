@@ -358,13 +358,14 @@ function printChat(){
    <style>
  @page{
    size:A4 portrait;
-   margin:12mm;
+   margin:8mm;
  }
 
  body{
    font-family:Arial;
    margin:0;
    padding:0;
+   transform:scale(0.88);
  }
 
  .company{
@@ -397,6 +398,17 @@ function printChat(){
    font-size:10px;   /* 🔥 ছোট করলে A4 এ ফিট হবে */
    margin-top:10px;
  }
+ table{
+ page-break-inside:avoid;
+}
+
+tr{
+ page-break-inside:avoid;
+}
+
+.footer{
+ page-break-inside:avoid;
+}
 
  th, td{
    border:1px solid #000;
