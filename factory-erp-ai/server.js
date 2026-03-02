@@ -27,7 +27,7 @@ const formatHeader = (title) => {
 };
 
 const formatNumber = (num) => {
-    return (num || 0).toLocaleString('en-IN');
+    return (num || 0).toLocaleString();
 };
 
 const formatDate = (date) => {
@@ -153,7 +153,7 @@ if(!q.match(/\d/) && q.length>=2){
             reply += `   📊 ${formatStatus(diff)}\n\n`;
         });
 
-        reply += `━━━━━━━━━━━━━━━━━━━━━━\n📊 মোট ${rows.length} এর মধ্যে সর্বশেষ ${last15.length} টি দেখানো হচ্ছে`;
+        reply += `━━━━━━━━━━━━━━━━━━━━━━\n📊 Showing last ${last15.length} of ${rows.length} entries`;
 
         return res.json({reply});
     }
@@ -203,11 +203,11 @@ Object.keys(sillMap).forEach(s=>{
 if(details.length){
 let reply = `${formatHeader(`${targetKey.toUpperCase()} - ${dateInput}`)}\n\n`;
 reply += details.join("\n\n");
-reply += `\n\n━━━━━━━━━━━━━━━━━━━━━━\n📍 **মোট ${targetKey.toUpperCase()}: ${formatNumber(total)} yds**`;
+reply += `\n\n━━━━━━━━━━━━━━━━━━━━━━\n📍 **Total ${targetKey.toUpperCase()}: ${formatNumber(total)} yds**`;
 return res.json({reply});
 }
 
-return res.json({reply:`${formatHeader("তথ্য পাওয়া যায়নি")}\n\n📅 ${dateInput} তারিখে ${targetKey} সেকশনে কোনো ডাটা পাওয়া যায়নি।`});
+return res.json({reply:`${formatHeader("No Data Found")}\n\n📅 No data found for ${targetKey} section on ${dateInput}.`});
 }
 
 // daily summary
@@ -222,17 +222,17 @@ const marceriseVal = dSum(marc,8);
 const rollingVal = dSum(roll,7);
 const totalDyeing = cVal + jVal + jgVal;
 
-let reply = `${formatHeader(`📅 দৈনিক রিপোর্ট - ${dateInput}`)}\n\n`;
-reply += `🎨 **প্রি-ট্রিটমেন্ট**\n`;
-reply += `🔹 সিংগিং: ${formatNumber(singingVal)} yds\n`;
-reply += `🔹 মার্সারাইজ: ${formatNumber(marceriseVal)} yds\n\n`;
-reply += `🎨 **ডাইং সেকশন**\n`;
+let reply = `${formatHeader(`📅 Daily Summary - ${dateInput}`)}\n\n`;
+reply += `🎨 **Pre-treatment**\n`;
+reply += `🔹 Singing: ${formatNumber(singingVal)} yds\n`;
+reply += `🔹 Marcerise: ${formatNumber(marceriseVal)} yds\n\n`;
+reply += `🎨 **Dyeing Section**\n`;
 reply += `🔹 CPB: ${formatNumber(cVal)} yds\n`;
 reply += `🔹 Jet: ${formatNumber(jVal)} yds\n`;
 reply += `🔹 Jigger: ${formatNumber(jgVal)} yds\n`;
 reply += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-reply += `📍 **মোট ডাইং: ${formatNumber(totalDyeing)} yds**\n`;
-reply += `✅ **রোলিং: ${formatNumber(rollingVal)} yds**`;
+reply += `📍 **Total Dyeing: ${formatNumber(totalDyeing)} yds**\n`;
+reply += `✅ **Rolling: ${formatNumber(rollingVal)} yds**`;
 
 return res.json({reply});
 }
@@ -244,7 +244,7 @@ if(sMatch && !q.includes("total")){
 
 const sill=sMatch[1];
 const gRow=grey.find(r=>(r[2]||"").trim()===sill);
-if(!gRow) return res.json({reply:`${formatHeader("তথ্য পাওয়া যায়নি")}\n\n❌ Sill ${sill} নম্বরটি খুঁজে পাওয়া যায়নি।`});
+if(!gRow) return res.json({reply:`${formatHeader("Not Found")}\n\n❌ Sill ${sill} not found.`});
 
 const getVal=(rows,s,sIdx,vIdx)=>
 rows.reduce((a,r)=>r[sIdx]===s
@@ -264,23 +264,23 @@ const lotSize=parseFloat((gRow[6]||"").replace(/,/g,''))||0;
 const totalDyeing = data.cpb + data.jet + data.jig;
 const diff = lotSize - data.roll;
 
-let reply = `${formatHeader(`📊 Sill ${sill} রিপোর্ট`)}\n\n`;
-reply += `👤 **পার্টি:** ${gRow[3]}\n`;
-reply += `📜 **কোয়ালিটি:** ${gRow[4]}\n`;
-reply += `📦 **লট সাইজ:** ${formatNumber(lotSize)} yds\n\n`;
+let reply = `${formatHeader(`📊 Sill ${sill} Report`)}\n\n`;
+reply += `👤 **Party:** ${gRow[3]}\n`;
+reply += `📜 **Quality:** ${gRow[4]}\n`;
+reply += `📦 **Lot Size:** ${formatNumber(lotSize)} yds\n\n`;
 reply += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-reply += `🎨 **প্রি-ট্রিটমেন্ট**\n`;
-reply += `🔹 সিংগিং: ${formatNumber(data.sing)} yds\n`;
-reply += `🔹 মার্সারাইজ: ${formatNumber(data.marc)} yds\n\n`;
-reply += `🎨 **ডাইং সেকশন**\n`;
+reply += `🎨 **Pre-treatment**\n`;
+reply += `🔹 Singing: ${formatNumber(data.sing)} yds\n`;
+reply += `🔹 Marcerise: ${formatNumber(data.marc)} yds\n\n`;
+reply += `🎨 **Dyeing Section**\n`;
 reply += `🔹 CPB: ${formatNumber(data.cpb)} yds\n`;
 reply += `🔹 Jet: ${formatNumber(data.jet)} yds\n`;
 reply += `🔹 Jigger: ${formatNumber(data.jig)} yds\n`;
 reply += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-reply += `📍 **মোট ডাইং: ${formatNumber(totalDyeing)} yds**\n`;
-reply += `✅ **রোলিং: ${formatNumber(data.roll)} yds**\n\n`;
+reply += `📍 **Total Dyeing: ${formatNumber(totalDyeing)} yds**\n`;
+reply += `✅ **Rolling: ${formatNumber(data.roll)} yds**\n\n`;
 reply += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-reply += `📊 ${diff<=0?"✅ এক্সট্রা":"⚠️ শর্টেজ"}: ${formatNumber(Math.abs(diff))} yds`;
+reply += `📊 ${diff<=0?"✅ Extra":"⚠️ Short"}: ${formatNumber(Math.abs(diff))} yds`;
 
 return res.json({reply});
 }
@@ -294,7 +294,7 @@ if(lotMatch && !q.includes("sill")){
     const gRow = grey.find(r => (r[6]||"").replace(/,/g,'').trim() === lotNumber);
 
     if(!gRow)
-        return res.json({reply:`${formatHeader("তথ্য পাওয়া যায়নি")}\n\n❌ Lot ${lotNumber} নম্বরটি খুঁজে পাওয়া যায়নি।`});
+        return res.json({reply:`${formatHeader("Not Found")}\n\n❌ Lot ${lotNumber} not found.`});
 
     const sill = gRow[2];
     const party = gRow[3];
@@ -309,15 +309,15 @@ if(lotMatch && !q.includes("sill")){
 
     const diff = rolling - lotSize;
 
-    let reply = `${formatHeader(`📦 লট রিপোর্ট: ${lotNumber}`)}\n\n`;
-    reply += `🏷️ **পার্টি:** ${party}\n`;
-    reply += `🔹 **সিল নং:** ${sill}\n`;
-    reply += `📜 **কোয়ালিটি:** ${quality}\n`;
+    let reply = `${formatHeader(`📦 Lot Report: ${lotNumber}`)}\n\n`;
+    reply += `🏷️ **Party:** ${party}\n`;
+    reply += `🔹 **Sill No:** ${sill}\n`;
+    reply += `📜 **Quality:** ${quality}\n`;
     reply += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-    reply += `📦 **লট সাইজ:** ${formatNumber(lotSize)} yds\n`;
-    reply += `✅ **রোলিং:** ${formatNumber(rolling)} yds\n`;
+    reply += `📦 **Lot Size:** ${formatNumber(lotSize)} yds\n`;
+    reply += `✅ **Rolling:** ${formatNumber(rolling)} yds\n`;
     reply += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-    reply += `📊 ${diff>=0?"✅ এক্সট্রা":"⚠️ শর্টেজ"}: ${formatNumber(Math.abs(diff))} yds`;
+    reply += `📊 ${diff>=0?"✅ Extra":"⚠️ Short"}: ${formatNumber(Math.abs(diff))} yds`;
 
     return res.json({reply});
 }
@@ -346,15 +346,15 @@ if(monthOnlyMatch && q.includes("dyeing")){
     const grandTotal = cpbTotal + jetTotal + jiggerTotal;
 
     if(grandTotal === 0){
-        return res.json({reply:`${formatHeader("তথ্য পাওয়া যায়নি")}\n\n📅 ${monthName.toUpperCase()} মাসে কোনো ডাইং ডাটা পাওয়া যায়নি।`});
+        return res.json({reply:`${formatHeader("No Data Found")}\n\n📅 No dyeing data found for ${monthName.toUpperCase()}.`});
     }
 
-    let reply = `${formatHeader(`🎨 ${monthName.toUpperCase()} ডাইং রিপোর্ট`)}\n\n`;
+    let reply = `${formatHeader(`🎨 ${monthName.toUpperCase()} Dyeing Report`)}\n\n`;
     reply += `🔹 **CPB:** ${formatNumber(cpbTotal)} yds\n`;
     reply += `🔹 **Jet:** ${formatNumber(jetTotal)} yds\n`;
     reply += `🔹 **Jigger:** ${formatNumber(jiggerTotal)} yds\n`;
     reply += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-    reply += `📍 **মোট ডাইং: ${formatNumber(grandTotal)} yds**`;
+    reply += `📍 **Total Dyeing: ${formatNumber(grandTotal)} yds**`;
 
     return res.json({reply});
 }
@@ -396,9 +396,9 @@ if(isTotalQuery){
             .sort((a,b)=>moment(a,"MMM-YYYY")-moment(b,"MMM-YYYY"));
 
         if(!sortedMonths.length)
-            return res.json({reply:`${formatHeader("তথ্য পাওয়া যায়নি")}\n\nকোনো ডাইং ডাটা পাওয়া যায়নি।`});
+            return res.json({reply:`${formatHeader("No Data Found")}\n\nNo dyeing data available.`});
 
-        let reply = `${formatHeader("🌍 মাসিক ডাইং ব্রেকডাউন")}\n`;
+        let reply = `${formatHeader("🌍 Dyeing Monthly Breakdown")}\n`;
 
         sortedMonths.forEach(m=>{
             const data = monthData[m];
@@ -408,7 +408,7 @@ if(isTotalQuery){
             reply += `   🔹 CPB: ${formatNumber(data.cpb)} yds\n`;
             reply += `   🔹 Jet: ${formatNumber(data.jet)} yds\n`;
             reply += `   🔹 Jigger: ${formatNumber(data.jigger)} yds\n`;
-            reply += `   📍 **মোট: ${formatNumber(total)} yds**\n`;
+            reply += `   📍 **Total: ${formatNumber(total)} yds**\n`;
         });
 
         return res.json({reply});
@@ -429,26 +429,26 @@ if(isTotalQuery){
         r: tSum(roll,7)
     };
 
-    let reply = `${formatHeader("🌍 সব মিলিয়ে মোট পরিমাণ")}\n\n`;
-    reply += `🎨 **প্রি-ট্রিটমেন্ট**\n`;
-    reply += `🔹 সিংগিং: ${formatNumber(t.s)} yds\n`;
-    reply += `🔹 মার্সারাইজ: ${formatNumber(t.m)} yds\n\n`;
-    reply += `🎨 **ডাইং সেকশন**\n`;
+    let reply = `${formatHeader("🌍 Grand Total All Time")}\n\n`;
+    reply += `🎨 **Pre-treatment**\n`;
+    reply += `🔹 Singing: ${formatNumber(t.s)} yds\n`;
+    reply += `🔹 Marcerise: ${formatNumber(t.m)} yds\n\n`;
+    reply += `🎨 **Dyeing Section**\n`;
     reply += `🔹 CPB: ${formatNumber(t.c)} yds\n`;
     reply += `🔹 Jet: ${formatNumber(t.j)} yds\n`;
     reply += `🔹 Jigger: ${formatNumber(t.jg)} yds\n`;
     reply += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-    reply += `✅ **মোট রোলিং: ${formatNumber(t.r)} yds**`;
+    reply += `✅ **Total Rolling: ${formatNumber(t.r)} yds**`;
 
     return res.json({reply});
 }
 
-// ===== MONTHLY ROLLING INSPECTION =====
+// ===== MONTHLY ROLLING INSPECTION (HTML VERSION - KEPT AS IS) =====
 if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
 
     const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
     if(!monthMatch)
-        return res.json({reply:`${formatHeader("ত্রুটি")}\n\nমাস লিখতে হবে (যেমন: feb rolling inspection)`});
+        return res.json({reply:`${formatHeader("Error")}\n\nPlease specify month (e.g., feb rolling inspection)`});
 
     const monthName = monthMatch[1];
     const monthIndex = moment().month(monthName).month();
@@ -485,19 +485,93 @@ if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
 
     rows.sort((a,b)=>a.sill - b.sill);
 
-    let reply = `${formatHeader(`${monthName.toUpperCase()} রোলিং ইন্সপেকশন`)}\n\n`;
+    // HTML table for rolling inspection (as requested)
+    let html = `
+    <style>
+        .inspection-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        .inspection-table th {
+            background: #4a5568;
+            color: white;
+            padding: 10px;
+            border: 1px solid #2d3748;
+            font-weight: bold;
+        }
+        .inspection-table td {
+            padding: 8px;
+            border: 1px solid #cbd5e0;
+            text-align: center;
+        }
+        .inspection-table tr:nth-child(even) {
+            background: #f7fafc;
+        }
+        .inspection-table tr:hover {
+            background: #edf2f7;
+        }
+        .positive {
+            color: #2f855a;
+            font-weight: bold;
+        }
+        .negative {
+            color: #c53030;
+            font-weight: bold;
+        }
+        .header-title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: #2d3748;
+            margin: 15px 0;
+        }
+    </style>
 
-    rows.forEach(r=>{
-        const isLoss = r.diff < 0;
-        const status = isLoss ? "⚠️" : "✅";
+    <div class="header-title">📊 ${monthName.toUpperCase()} ROLLING INSPECTION REPORT</div>
+
+    <table class="inspection-table">
+        <thead>
+            <tr>
+                <th>Sill No</th>
+                <th>Party</th>
+                <th>Lot (yds)</th>
+                <th>Rolling (yds)</th>
+                <th>Difference</th>
+                <th>%</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+
+    rows.forEach(r => {
+        const diffClass = r.diff >= 0 ? 'positive' : 'negative';
+        const diffSign = r.diff >= 0 ? '+' : '';
         
-        reply += `🔹 **Sill ${r.sill}** | ${r.party}\n`;
-        reply += `   📦 লট: ${formatNumber(r.lot)} yds\n`;
-        reply += `   ✅ রোল: ${formatNumber(r.rollingTotal)} yds\n`;
-        reply += `   ${status} ডিফারেন্স: ${r.diff>=0?"+":""}${formatNumber(r.diff)} yds (${r.percent.toFixed(2)}%)\n\n`;
+        html += `
+            <tr>
+                <td><strong>${r.sill}</strong></td>
+                <td style="text-align: left;">${r.party}</td>
+                <td>${r.lot.toLocaleString()}</td>
+                <td>${r.rollingTotal.toLocaleString()}</td>
+                <td class="${diffClass}">${diffSign}${r.diff.toLocaleString()}</td>
+                <td class="${diffClass}">${r.percent.toFixed(2)}%</td>
+            </tr>
+        `;
     });
 
-    return res.json({reply});
+    html += `
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 15px; font-size: 12px; color: #718096; text-align: center;">
+        ✅ Positive = Extra | ⚠️ Negative = Short
+    </div>
+    `;
+
+    return res.json({reply: html});
 }
 
 // ===== SECTION HISTORY =====
@@ -549,10 +623,10 @@ total+=val;
 });
 
 if(lines.length){
-let reply = `${formatHeader(`${sectionKey.toUpperCase()} হিস্ট্রি - Sill ${sill}`)}\n\n`;
-reply += `👤 **পার্টি:** ${party}\n\n`;
+let reply = `${formatHeader(`${sectionKey.toUpperCase()} History - Sill ${sill}`)}\n\n`;
+reply += `👤 **Party:** ${party}\n\n`;
 reply += lines.join("\n");
-reply += `\n\n━━━━━━━━━━━━━━━━━━━━━━\n📍 **মোট: ${formatNumber(total)} yds**`;
+reply += `\n\n━━━━━━━━━━━━━━━━━━━━━━\n📍 **Total: ${formatNumber(total)} yds**`;
 return res.json({reply});
 }
 }
@@ -563,12 +637,12 @@ return res.json({reply});
 if(q.includes("per day")){
 
     const sectionMap = {
-        singing: {rows: sing, idx: 8, bn: "সিংগিং"},
-        marcerise: {rows: marc, idx: 8, bn: "মার্সারাইজ"},
-        cpb: {rows: cpb, idx: 6, bn: "CPB"},
-        jet: {rows: jet, idx: 6, bn: "Jet"},
-        jigger: {rows: jig, idx: 7, bn: "Jigger"},
-        rolling: {rows: roll, idx: 7, bn: "রোলিং"}
+        singing: {rows: sing, idx: 8, name: "Singing"},
+        marcerise: {rows: marc, idx: 8, name: "Marcerise"},
+        cpb: {rows: cpb, idx: 6, name: "CPB"},
+        jet: {rows: jet, idx: 6, name: "Jet"},
+        jigger: {rows: jig, idx: 7, name: "Jigger"},
+        rolling: {rows: roll, idx: 7, name: "Rolling"}
     };
 
     const sectionKey = Object.keys(sectionMap).find(s => q.includes(s));
@@ -576,7 +650,7 @@ if(q.includes("per day")){
 
     if(sectionKey){
 
-        const {rows, idx, bn} = sectionMap[sectionKey];
+        const {rows, idx, name} = sectionMap[sectionKey];
         let dayMap = {};
         let monthIndex = null;
 
@@ -601,34 +675,34 @@ if(q.includes("per day")){
             .sort((a,b)=>moment(a,"DD-MMM-YYYY") - moment(b,"DD-MMM-YYYY"));
 
         if(!sortedDates.length)
-            return res.json({reply:`${formatHeader("তথ্য পাওয়া যায়নি")}\n\nএই মাসে কোনো ডাটা নেই।`});
+            return res.json({reply:`${formatHeader("No Data Found")}\n\nNo data found for this month.`});
 
         let total = 0;
         let titleMonth = monthMatch ? monthMatch[1].toUpperCase()+" " : "";
 
-        let reply = `${formatHeader(`📊 ${titleMonth}${bn} পার ডে রিপোর্ট`)}\n\n`;
+        let reply = `${formatHeader(`📊 ${titleMonth}${name} Per Day Report`)}\n\n`;
 
         sortedDates.forEach((d,i)=>{
             total += dayMap[d];
             reply += `${i+1}. **${d}** — ${formatNumber(dayMap[d])} yds\n`;
         });
 
-        reply += `\n━━━━━━━━━━━━━━━━━━━━━━\n📊 **মোট: ${formatNumber(total)} yds**`;
+        reply += `\n━━━━━━━━━━━━━━━━━━━━━━\n📊 **Total: ${formatNumber(total)} yds**`;
 
         return res.json({reply});
     }
 }
 
 // ===== FINAL FALLBACK =====
-res.json({reply:`${formatHeader("স্বাগতম")}\n\nআপনি যা খুঁজছেন:\n\n` +
-`🔹 সিল নং (যেমন: 590)\n` +
-`🔹 তারিখ (যেমন: 3 feb cpb)\n` +
-`🔹 পার্টির নাম\n` +
-`🔹 মাস (যেমন: feb dyeing)\n` +
-`🔹 লট নম্বর\n` +
-`🔹 total dyeing (মাসিক ব্রেকডাউন)\n` +
-`🔹 rolling inspection\n\n` +
-`📝 দয়া করে উপরের যেকোনো একটি ফরম্যাটে লিখুন`});
+res.json({reply:`${formatHeader("Welcome to ERP System")}\n\nYou can search by:\n\n` +
+`🔹 Sill Number (e.g., 590)\n` +
+`🔹 Date (e.g., 3 feb cpb)\n` +
+`🔹 Party Name\n` +
+`🔹 Month (e.g., feb dyeing)\n` +
+`🔹 Lot Number\n` +
+`🔹 total dyeing (monthly breakdown)\n` +
+`🔹 rolling inspection (e.g., feb rolling inspection)\n\n` +
+`📝 Please use any of the above formats`});
 
 });
 
