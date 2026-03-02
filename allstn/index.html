@@ -211,11 +211,67 @@ text.addEventListener("keypress", function(e){
 function printChat(){
 
   const botMessages = document.querySelectorAll(".bot");
-  let reportContent = "";
 
-  botMessages.forEach(msg=>{
-    reportContent += `<div style="margin-bottom:10px;">${msg.innerHTML}</div>`;
-  });
+  if(botMessages.length === 0) return;
+
+  // ✅ শুধু শেষ bot message
+  const lastReport = botMessages[botMessages.length - 1].innerHTML;
+
+  const today = new Date();
+  const dateTime = today.toLocaleString();
+
+  const newWindow = window.open("", "", "width=900,height=700");
+
+  newWindow.document.write(`
+    <html>
+    <head>
+      <title>ISO Production Report</title>
+      <style>
+        body{ font-family:Arial; padding:40px; }
+        .header{text-align:center;margin-bottom:20px;}
+        .company{font-size:24px;font-weight:bold;letter-spacing:1px;}
+        .address{font-size:14px;color:#555;margin-top:4px;}
+        .erp{font-size:16px;font-weight:bold;margin-top:6px;}
+        .line{height:2px;background:#000;width:70%;margin:15px auto;}
+        .meta{text-align:left;margin-top:10px;}
+        .footer{margin-top:40px;font-size:12px;display:flex;justify-content:space-between;}
+      </style>
+    </head>
+    <body>
+
+    <div class="header">
+      <div class="company">Sukhy Dyeing and Finishing Mills LTD.</div>
+      <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
+      <div class="erp">Sukhy ERP</div>
+      <div class="line"></div>
+    </div>
+
+    <div class="meta">
+      <b>Query:</b> ${lastUserQuery}<br>
+      <b>Generated:</b> ${dateTime}
+    </div>
+
+    <hr>
+
+    ${lastReport}
+
+    <div class="footer">
+      <div>
+        Prepared By: Ruhul Amin <br>
+        Developed By: Mehedi Hasan
+      </div>
+      <div>
+        Signature: ___________________________
+      </div>
+    </div>
+
+    </body>
+    </html>
+  `);
+
+  newWindow.document.close();
+  newWindow.print();
+}
 
   const today = new Date();
   const dateTime = today.toLocaleString();
