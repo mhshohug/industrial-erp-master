@@ -454,7 +454,71 @@ noor cpb
     });
   }
 
+/* ===================== ANY MONTH PER DAY DYEING ===================== */
 
+  const monthPerDayDyeingMatch = question.match(
+    /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+dyeing$/
+  );
+
+  if (monthPerDayDyeingMatch) {
+
+    const months = {
+      jan:0,feb:1,mar:2,apr:3,may:4,jun:5,
+      jul:6,aug:7,sep:8,oct:9,nov:10,dec:11
+    };
+
+    const selectedMonthIndex = months[monthPerDayDyeingMatch[1]];
+    const year = new Date().getFullYear();
+    const daysInMonth = new Date(year, selectedMonthIndex+1, 0).getDate();
+
+    let lines = [];
+    let grandTotal = 0;
+    let highest = 0;
+    let lowest = null;
+
+    for(let d=1; d<=daysInMonth; d++){
+
+      const sumProcess = (sheet) =>
+        db[sheet]?.slice(1).reduce((total,row)=>{
+          const rowDate = parseSheetDate(row[0]);
+          if(rowDate &&
+             rowDate.getFullYear()===year &&
+             rowDate.getMonth()===selectedMonthIndex &&
+             rowDate.getDate()===d){
+            return total + safeNumber(row[6]);
+          }
+          return total;
+        },0) || 0;
+
+      const totalDye =
+        sumProcess("cpb") +
+        sumProcess("jigger") +
+        sumProcess("ex_jigger") +
+        sumProcess("napthol");
+
+      lines.push(
+        `${String(d).padStart(2,"0")} : ${totalDye.toLocaleString()} yds`
+      );
+
+      grandTotal += totalDye;
+
+      if(totalDye > highest) highest = totalDye;
+      if(lowest === null || totalDye < lowest) lowest = totalDye;
+    }
+
+    return res.json({
+      reply:`
+${monthPerDayDyeingMatch[1].toUpperCase()} DAILY DYEING
+----------------------------------
+${lines.join("\n")}
+----------------------------------
+Highest : ${highest.toLocaleString()}
+Lowest  : ${lowest.toLocaleString()}
+----------------------------------
+TOTAL   : ${grandTotal.toLocaleString()} yds
+`
+    });
+  }
   /* ===================== PER DAY ===================== */
 
   const perDayMatch=question.match(/(cpb|jigger|ex-jigger|exjigger|napthol|singing|marcerise|bleach|folding)\s*per\s*day/);
