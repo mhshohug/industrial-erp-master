@@ -73,29 +73,12 @@ function getParsedDate(q){
     return moment(`${match[1]} ${match[2]} ${year}`,"D MMM YYYY")
         .format("DD-MMM-YYYY");
 }
+
 // ================= ASK =================
 router.post("/ask", async (req,res)=>{
 
 const q=(req.body.question||"").toLowerCase().trim();
-
-// NEW: total / totall detect
 const isTotalQuery = /\btotall?\b/.test(q);
-
-// NEW: smart month map (short + full)
-const monthMap = {
-    jan:0, january:0,
-    feb:1, february:1,
-    mar:2, march:2,
-    apr:3, april:3,
-    may:4,
-    jun:5, june:5,
-    jul:6, july:6,
-    aug:7, august:7,
-    sep:8, september:8,
-    oct:9, october:9,
-    nov:10, november:10,
-    dec:11, december:11
-};
 
 const sheets=await Promise.all(Object.values(GID_MAP).map(fetchSheet));
 const [grey,sing,marc,cpb,jet,jig,roll]=sheets;
@@ -129,8 +112,14 @@ if(!q.match(/\d/) && q.length>=2){
         let rows=grey.filter(r=>normalizeName(r[3])===normalizeName(bestMatch));
         let last15=rows.slice(-15);
 
-        let reply=`🏷️ Party: ${bestMatch.toUpperCase()}
-━━━━━━━━━━━━━━━━\n`;
+        let reply=`
+🏷️ PARTY REPORT
+════════════════════
+Party Name : ${bestMatch.toUpperCase()}
+Total Entry: ${rows.length}
+Showing    : Last ${last15.length}
+────────────────────
+`;
 
         last15.forEach(r=>{
             let lot=parseFloat((r[6]||"").replace(/,/g,''))||0;
@@ -138,19 +127,23 @@ if(!q.match(/\d/) && q.length>=2){
             let diff=rolling-lot;
 
             let status=diff>=0
-            ? `Extra ${Math.abs(diff).toLocaleString()}`
-            : `Short ${Math.abs(diff).toLocaleString()}`;
+            ? `EXTRA ${Math.abs(diff).toLocaleString()} yds`
+            : `SHORT ${Math.abs(diff).toLocaleString()} yds`;
 
-            reply+=`🔹 Sill ${r[2]} | ${r[4]} | Lot ${lot.toLocaleString()} | Roll ${rolling.toLocaleString()} | ${status} yds\n`;
+            reply+=`
+Sill      : ${r[2]}
+Quality   : ${r[4]}
+Lot       : ${lot.toLocaleString()} yds
+Rolling   : ${rolling.toLocaleString()} yds
+Status    : ${status}
+────────────────────
+`;
         });
 
-        reply+=`\n📊 Showing ${last15.length} of ${rows.length} entries`;
         return res.json({reply});
     }
 }
-   /* ================= ORIGINAL CODE CONTINUES ================= */
-
-// ===== DATE SEARCH =====
+// ================= DATE SEARCH =================
 const dateInput=getParsedDate(q);
 
 if(dateInput && !q.match(/sill\s*(\d+)/) && !q.match(/^\d+$/)){
@@ -187,21 +180,32 @@ sillMap[sNum].val+=val;
 
 Object.keys(sillMap).forEach(s=>{
     let d=sillMap[s];
-    details.push(`🔹 Sill ${s} | ${d.party} | Lot ${d.lot.toLocaleString()} | ${d.val.toLocaleString()} yds`);
     total+=d.val;
+
+    details.push(`
+Sill      : ${s}
+Party     : ${d.party}
+Lot       : ${d.lot.toLocaleString()} yds
+Output    : ${d.val.toLocaleString()} yds
+────────────────────
+`);
 });
 
 if(details.length)
-return res.json({reply:`📅 **${targetKey.toUpperCase()} - ${dateInput}**
-━━━━━━━━━━━━━━━━
-${details.join("\n")}
+return res.json({reply:`
+📅 DAILY SECTION REPORT
+════════════════════
+Section   : ${targetKey.toUpperCase()}
+Date      : ${dateInput}
+────────────────────
+${details.join("")}
+TOTAL     : ${total.toLocaleString()} yds
+`});
 
-📍 **Total: ${total.toLocaleString()} yds**`});
-
-return res.json({reply:`📅 ${dateInput} এ ${targetKey} সেকশনে কোনো ডাটা পাওয়া যায়নি।`});
+return res.json({reply:`📅 ${dateInput} তারিখে ${targetKey.toUpperCase()} সেকশনে কোনো ডাটা পাওয়া যায়নি।`});
 }
 
-// daily summary
+// ===== DAILY SUMMARY =====
 const dSum=(rows,idx)=>rows.reduce((acc,r)=>
 normalizeSheetDate(r[0])===normalizeSheetDate(dateInput)
 ?acc+(parseFloat((r[idx]||"").replace(/,/g,''))||0)
@@ -209,19 +213,24 @@ normalizeSheetDate(r[0])===normalizeSheetDate(dateInput)
 
 const cVal=dSum(cpb,6),jVal=dSum(jet,6),jgVal=dSum(jig,7);
 
-return res.json({reply:`📅 **Daily Summary: ${dateInput}**
-━━━━━━━━━━━━━━━━
-🔹 Singing: ${dSum(sing,8).toLocaleString()} yds
-🔹 Marcerise: ${dSum(marc,8).toLocaleString()} yds
-🔹 CPB: ${cVal.toLocaleString()} yds
-🔹 Jet: ${jVal.toLocaleString()} yds
-🔹 Jigger: ${jgVal.toLocaleString()} yds
-📍 **Total Dyeing: ${(cVal+jVal+jgVal).toLocaleString()} yds
-✅ Rolling: ${dSum(roll,7).toLocaleString()} yds`});
+return res.json({reply:`
+📅 DAILY FACTORY SUMMARY
+════════════════════
+Date        : ${dateInput}
+────────────────────
+Singing     : ${dSum(sing,8).toLocaleString()} yds
+Marcerise   : ${dSum(marc,8).toLocaleString()} yds
+CPB         : ${cVal.toLocaleString()} yds
+Jet         : ${jVal.toLocaleString()} yds
+Jigger      : ${jgVal.toLocaleString()} yds
+────────────────────
+Total Dyeing: ${(cVal+jVal+jgVal).toLocaleString()} yds
+Rolling     : ${dSum(roll,7).toLocaleString()} yds
+`});
 }
 
 
-// ===== SILL REPORT =====
+// ================= SILL REPORT =================
 let sMatch=q.match(/(\d+)/);
 if(sMatch && !q.includes("total")){
 
@@ -246,27 +255,29 @@ roll:getVal(roll,sill,1,7)
 const lotSize=parseFloat((gRow[6]||"").replace(/,/g,''))||0;
 const diff=lotSize-data.roll;
 
-return res.json({reply:`📊 **Report: Sill ${sill}**
-━━━━━━━━━━━━━━━━
-👤 Party: ${gRow[3]}
-📜 Quality: ${gRow[4]}
-📦 Lot Size: ${lotSize.toLocaleString()} yds
-
-⚙️ Process Details:
-🔹 Singing: ${data.sing.toLocaleString()} yds
-🔹 Marcerise: ${data.marc.toLocaleString()} yds
-
-🎨 Dyeing Section:
-🔹 CPB: ${data.cpb.toLocaleString()} yds
-🔹 Jet: ${data.jet.toLocaleString()} yds
-🔹 Jigger: ${data.jig.toLocaleString()} yds
-📍 Total Dyeing: ${(data.cpb+data.jet+data.jig).toLocaleString()} yds
-
-✅ Rolling: ${data.roll.toLocaleString()} yds
-━━━━━━━━━━━━━━━━
-📊 ${diff<=0?"Extra":"Short"}: ${Math.abs(diff).toLocaleString()} yds`});
+return res.json({reply:`
+📊 SILL MASTER REPORT
+════════════════════
+Sill       : ${sill}
+Party      : ${gRow[3]}
+Quality    : ${gRow[4]}
+Lot Size   : ${lotSize.toLocaleString()} yds
+────────────────────
+Singing    : ${data.sing.toLocaleString()} yds
+Marcerise  : ${data.marc.toLocaleString()} yds
+────────────────────
+CPB        : ${data.cpb.toLocaleString()} yds
+Jet        : ${data.jet.toLocaleString()} yds
+Jigger     : ${data.jig.toLocaleString()} yds
+Dyeing Tot : ${(data.cpb+data.jet+data.jig).toLocaleString()} yds
+────────────────────
+Rolling    : ${data.roll.toLocaleString()} yds
+Status     : ${diff<=0?"EXTRA":"SHORT"} ${Math.abs(diff).toLocaleString()} yds
+`});
 }
-// ===== LOT SEARCH =====
+
+
+// ================= LOT REPORT =================
 let lotMatch = q.match(/lot\s*(\d+)/) || q.match(/^\d{4,6}$/);
 
 if(lotMatch && !q.includes("sill")){
@@ -294,24 +305,28 @@ if(lotMatch && !q.includes("sill")){
     const diff = rolling - lotSize;
 
     return res.json({
-        reply:`📦 LOT REPORT: ${lotNumber}
-━━━━━━━━━━━━━━━━
-🏷️ Party: ${party}
-🔹 Sill: ${sill}
-📜 Quality: ${quality}
-📦 Lot Size: ${lotSize.toLocaleString()} yds
-✅ Rolling: ${rolling.toLocaleString()} yds
-📊 ${diff>=0?"Extra":"Short"}: ${Math.abs(diff).toLocaleString()} yds`
+        reply:`
+📦 LOT DETAIL REPORT
+════════════════════
+Lot Number : ${lotNumber}
+Sill       : ${sill}
+Party      : ${party}
+Quality    : ${quality}
+Lot Size   : ${lotSize.toLocaleString()} yds
+Rolling    : ${rolling.toLocaleString()} yds
+────────────────────
+Status     : ${diff>=0?"EXTRA":"SHORT"} ${Math.abs(diff).toLocaleString()} yds
+`
     });
-}
-// ===== SMART MONTH + DYEING (e.g. feb dyeing / march dyeing) =====
+}    
+// ================= SMART MONTH + DYEING =================
 
 const monthOnlyMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
 
 if(monthOnlyMatch && q.includes("dyeing")){
 
     const monthName = monthOnlyMatch[1];
-    const monthIndex = moment().month(monthName).month(); // 0-11
+    const monthIndex = moment().month(monthName).month();
 
     const filterByMonth = (rows, idx) => 
         rows.reduce((acc, r) => {
@@ -334,16 +349,23 @@ if(monthOnlyMatch && q.includes("dyeing")){
     }
 
     return res.json({
-        reply:`🎨 **${monthName.toUpperCase()} Dyeing Report**
-━━━━━━━━━━━━━━━━
-🔹 CPB: ${cpbTotal.toLocaleString()} yds
-🔹 Jet: ${jetTotal.toLocaleString()} yds
-🔹 Jigger: ${jiggerTotal.toLocaleString()} yds
-━━━━━━━━━━━━━━━━
-📍 **Total Dyeing: ${grandTotal.toLocaleString()} yds**`
+        reply:`
+🎨 MONTHLY DYEING REPORT
+════════════════════
+Month      : ${monthName.toUpperCase()}
+────────────────────
+CPB        : ${cpbTotal.toLocaleString()} yds
+Jet        : ${jetTotal.toLocaleString()} yds
+Jigger     : ${jiggerTotal.toLocaleString()} yds
+────────────────────
+Total      : ${grandTotal.toLocaleString()} yds
+`
     });
 }
-// ===== OLD MONTHLY NAME SEARCH (তোমার পুরাতনটা থাকবে) =====
+
+
+// ================= MONTHLY TOTAL =================
+
 const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
 
 if(monthMatch && q.includes("total")){
@@ -370,26 +392,36 @@ if(monthMatch && q.includes("total")){
     };
 
     if(q.includes("dyeing")){
-        return res.json({reply:`📅 ${monthName.toUpperCase()} Dyeing Report
-━━━━━━━━━━━━━━━━
-🔹 CPB: ${totals.c.toLocaleString()} yds
-🔹 Jet: ${totals.j.toLocaleString()} yds
-🔹 Jigger: ${totals.jg.toLocaleString()} yds
-📍 Total Dyeing: ${(totals.c+totals.j+totals.jg).toLocaleString()} yds`});
+        return res.json({reply:`
+🎨 MONTHLY DYEING TOTAL
+════════════════════
+Month      : ${monthName.toUpperCase()}
+────────────────────
+CPB        : ${totals.c.toLocaleString()} yds
+Jet        : ${totals.j.toLocaleString()} yds
+Jigger     : ${totals.jg.toLocaleString()} yds
+────────────────────
+Total      : ${(totals.c+totals.j+totals.jg).toLocaleString()} yds
+`});
     }
 
-    return res.json({reply:`📅 ${monthName.toUpperCase()} Monthly Report
-━━━━━━━━━━━━━━━━
-🔹 Singing: ${totals.s.toLocaleString()} yds
-🔹 Marcerise: ${totals.m.toLocaleString()} yds
-🔹 CPB: ${totals.c.toLocaleString()} yds
-🔹 Jet: ${totals.j.toLocaleString()} yds
-🔹 Jigger: ${totals.jg.toLocaleString()} yds
-✅ Total Rolling: ${totals.r.toLocaleString()} yds`});
+    return res.json({reply:`
+📊 FULL MONTHLY REPORT
+════════════════════
+Month        : ${monthName.toUpperCase()}
+────────────────────
+Singing      : ${totals.s.toLocaleString()} yds
+Marcerise    : ${totals.m.toLocaleString()} yds
+CPB          : ${totals.c.toLocaleString()} yds
+Jet          : ${totals.j.toLocaleString()} yds
+Jigger       : ${totals.jg.toLocaleString()} yds
+Rolling      : ${totals.r.toLocaleString()} yds
+`});
 }
 
 
-// ===== UNIVERSAL PER DAY REPORT (SMART MONTH SUPPORT) =====
+
+// ================= UNIVERSAL PER DAY REPORT =================
 
 if(q.includes("per day")){
 
@@ -422,14 +454,11 @@ if(q.includes("per day")){
             const val = parseFloat((r[idx]||"").replace(/,/g,'')) || 0;
 
             if(!m.isValid() || val <= 0) return;
-
-            // যদি মাস দেওয়া থাকে তাহলে শুধু ওই মাস ফিল্টার হবে
             if(monthIndex !== null && m.month() !== monthIndex) return;
 
             const formattedDate = m.format("DD-MMM-YYYY");
 
             if(!dayMap[formattedDate]) dayMap[formattedDate] = 0;
-
             dayMap[formattedDate] += val;
         });
 
@@ -442,23 +471,33 @@ if(q.includes("per day")){
         let total = 0;
         let titleMonth = monthMatch ? monthMatch[1].toUpperCase()+" " : "";
 
-        let reply = `📅 ${titleMonth}${sectionKey.toUpperCase()} Per Day Report\n━━━━━━━━━━━━━━━━\n`;
+        let reply = `
+📅 PER DAY REPORT
+════════════════════
+Section    : ${titleMonth}${sectionKey.toUpperCase()}
+────────────────────
+`;
 
         sortedDates.forEach((d,i)=>{
             total += dayMap[d];
-            reply += `${i+1}. ${d} — ${dayMap[d].toLocaleString()} yds\n`;
+            reply += `${i+1}. ${d}  →  ${dayMap[d].toLocaleString()} yds\n`;
         });
 
-        reply += `\n📊 Total: ${total.toLocaleString()} yds`;
+        reply += `
+────────────────────
+Total      : ${total.toLocaleString()} yds
+`;
 
         return res.json({reply});
     }
 }
 
-     // ===== NEW GRAND TOTAL / MONTHLY BREAKDOWN =====
+
+
+// ================= GRAND TOTAL / MONTHLY BREAKDOWN =================
+
 if(isTotalQuery){
 
-    // ===== If totall dyeing → month wise breakdown =====
     if(q.includes("dyeing")){
 
         const sectionMap = {
@@ -495,23 +534,28 @@ if(isTotalQuery){
         if(!sortedMonths.length)
             return res.json({reply:"কোনো Dyeing ডাটা পাওয়া যায়নি।"});
 
-        let reply = "🌍 Dyeing Monthly Breakdown\n━━━━━━━━━━━━━━━━\n";
+        let reply = `
+🌍 DYEING MONTHLY BREAKDOWN
+════════════════════
+`;
 
         sortedMonths.forEach(m=>{
             const data = monthData[m];
             const total = data.cpb + data.jet + data.jigger;
 
-            reply += `\n📅 ${m}
-   🔹 CPB: ${data.cpb.toLocaleString()} yds
-   🔹 Jet: ${data.jet.toLocaleString()} yds
-   🔹 Jigger: ${data.jigger.toLocaleString()} yds
-   📍 Total: ${total.toLocaleString()} yds\n`;
+            reply += `
+Month      : ${m}
+CPB        : ${data.cpb.toLocaleString()} yds
+Jet        : ${data.jet.toLocaleString()} yds
+Jigger     : ${data.jigger.toLocaleString()} yds
+Total      : ${total.toLocaleString()} yds
+────────────────────
+`;
         });
 
         return res.json({reply});
     }
 
-    // ===== Full Grand Total =====
     const tSum = (rows,idx)=>
         rows.reduce((a,r)=>
             a+(parseFloat((r[idx]||"").replace(/,/g,''))||0)
@@ -527,17 +571,19 @@ if(isTotalQuery){
     };
 
     return res.json({
-        reply:`🌍 Monthly Grand Total
-━━━━━━━━━━━━━━━━
-🔹 Singing: ${t.s.toLocaleString()} yds
-🔹 Marcerise: ${t.m.toLocaleString()} yds
-🔹 CPB: ${t.c.toLocaleString()} yds
-🔹 Jet: ${t.j.toLocaleString()} yds
-🔹 Jigger: ${t.jg.toLocaleString()} yds
-✅ Total Rolling: ${t.r.toLocaleString()} yds`
+        reply:`
+🌍 FACTORY GRAND TOTAL
+════════════════════
+Singing     : ${t.s.toLocaleString()} yds
+Marcerise   : ${t.m.toLocaleString()} yds
+CPB         : ${t.c.toLocaleString()} yds
+Jet         : ${t.j.toLocaleString()} yds
+Jigger      : ${t.jg.toLocaleString()} yds
+Rolling     : ${t.r.toLocaleString()} yds
+`
     });
 }
-// ===== MONTH ROLLING INSPECTION (PRO GRID VERSION) =====
+// ================= MONTH ROLLING INSPECTION =================
 
 if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
 
@@ -578,11 +624,10 @@ if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
         rows.push({sill:Number(sill), party, lot, rollingTotal, diff, percent});
     });
 
-    // 🔹 Sort by Sill number ascending
     rows.sort((a,b)=>a.sill - b.sill);
 
     let html = `
-    <h3 style="text-align:center;margin-bottom:10px;">
+    <h3 style="text-align:center;margin-bottom:15px;">
         ${monthName.toUpperCase()} ROLLING INSPECTION
     </h3>
 
@@ -593,7 +638,7 @@ if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
         text-align:center;
     ">
         <thead>
-            <tr style="background:#f2f2f2;font-weight:bold;">
+            <tr style="background:#f4f4f4;font-weight:bold;">
                 <th style="border:1px solid #000;padding:6px;">%</th>
                 <th style="border:1px solid #000;padding:6px;">Sill</th>
                 <th style="border:1px solid #000;padding:6px;">Party</th>
@@ -642,7 +687,10 @@ if(q.includes("rolling") && (q.includes("inspection") || q.includes("ins"))){
     return res.json({reply: html});
 }
 
-// ===== SMART DIRECT SEARCH (Original) =====
+
+
+// ================= SMART DIRECT SEARCH =================
+
 const secDetect=(q)=>{
 if(/cpb/.test(q)) return "cpb";
 if(/\bjet\b/.test(q)) return "jet";
@@ -686,25 +734,48 @@ let vIdx=(sectionKey==="singing"||sectionKey==="marcerise")?8:(sectionKey==="jet
 let val=parseFloat((r[vIdx]||"").replace(/,/g,''))||0;
 if(val<=0) return;
 
-lines.push(`🔹 ${date} | ${val.toLocaleString()} yds`);
+lines.push(`${date}  →  ${val.toLocaleString()} yds`);
 total+=val;
 }
 });
 
 if(lines.length)
-return res.json({reply:`📊 ${sectionKey.toUpperCase()} History — Sill ${sill}
-━━━━━━━━━━━━━━━━
+return res.json({reply:`
+📊 SECTION HISTORY REPORT
+════════════════════
+Section   : ${sectionKey.toUpperCase()}
+Sill      : ${sill}
+Party     : ${party}
+────────────────────
 ${lines.join("\n")}
-
-📍 Total ${sectionKey.toUpperCase()}: ${total.toLocaleString()} yds`});
+────────────────────
+Total     : ${total.toLocaleString()} yds
+`});
 }
 
 }
 
 
-// ===== FINAL FALLBACK =====
-res.json({reply:"Sill নম্বর বা তারিখ (e.g. 3 feb jet / kal cpb) লিখে সার্চ দিন ওস্তাদ!"});
+
+// ================= FINAL FALLBACK =================
+
+res.json({
+reply:`
+⚠️ INVALID QUERY
+════════════════════
+Please try:
+• 3 feb jet
+• sill 590
+• feb dyeing
+• total dyeing
+• feb rolling inspection
+`
+});
 
 });
 
-module.exports = router;       
+module.exports = router;
+
+
+    
+    
