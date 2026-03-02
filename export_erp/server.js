@@ -454,71 +454,91 @@ noor cpb
     });
   }
 
-/* ===================== ANY MONTH PER DAY DYEING ===================== */
+/* ===================== ANY MONTH PER DAY DYEING TABLE ===================== */
 
-  const monthPerDayDyeingMatch = question.match(
-    /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+dyeing$/
+const monthPerDayDyeingMatch = question.match(
+/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+dyeing$/
+);
+
+if (monthPerDayDyeingMatch) {
+
+  const months = {
+    jan:0,feb:1,mar:2,apr:3,may:4,jun:5,
+    jul:6,aug:7,sep:8,oct:9,nov:10,dec:11
+  };
+
+  const selectedMonthIndex = months[monthPerDayDyeingMatch[1]];
+  const year = new Date().getFullYear();
+  const daysInMonth = new Date(year, selectedMonthIndex+1, 0).getDate();
+
+  let lines = [];
+
+  let totalCPB = 0;
+  let totalJigger = 0;
+  let totalEx = 0;
+  let totalNapthol = 0;
+  let overallTotal = 0;
+
+  function sumProcess(sheet, d){
+    return db[sheet]?.slice(1).reduce((total,row)=>{
+      const rowDate = parseSheetDate(row[0]);
+      if(rowDate &&
+         rowDate.getFullYear()===year &&
+         rowDate.getMonth()===selectedMonthIndex &&
+         rowDate.getDate()===d){
+        return total + safeNumber(row[6]);
+      }
+      return total;
+    },0) || 0;
+  }
+
+  lines.push("------------------------------------------------------------");
+  lines.push(`|            ${monthPerDayDyeingMatch[1].toUpperCase()} DAILY DYEING                             |`);
+  lines.push("------------------------------------------------------------");
+  lines.push("");
+  lines.push("| DATE |   CPB   |  JIGGER  | EX-JIGGER | NAPTHOL | TOTAL |");
+  lines.push("|------|---------|----------|-----------|---------|-------|");
+
+  for(let d=1; d<=daysInMonth; d++){
+
+    const cpb = sumProcess("cpb", d);
+    const jigger = sumProcess("jigger", d);
+    const ex = sumProcess("ex_jigger", d);
+    const napthol = sumProcess("napthol", d);
+
+    const dayTotal = cpb + jigger + ex + napthol;
+
+    totalCPB += cpb;
+    totalJigger += jigger;
+    totalEx += ex;
+    totalNapthol += napthol;
+    overallTotal += dayTotal;
+
+    lines.push(
+`| ${String(d).padStart(2,"0")}   | `
++ `${cpb.toString().padStart(7," ")} | `
++ `${jigger.toString().padStart(8," ")} | `
++ `${ex.toString().padStart(9," ")} | `
++ `${napthol.toString().padStart(7," ")} | `
++ `${dayTotal.toString().padStart(5," ")} |`
+    );
+  }
+
+  lines.push("|------|---------|----------|-----------|---------|-------|");
+  lines.push(
+`| TOTAL| `
++ `${totalCPB.toString().padStart(7," ")} | `
++ `${totalJigger.toString().padStart(8," ")} | `
++ `${totalEx.toString().padStart(9," ")} | `
++ `${totalNapthol.toString().padStart(7," ")} | `
++ `${overallTotal.toString().padStart(5," ")} |`
   );
 
-  if (monthPerDayDyeingMatch) {
+  lines.push("------------------------------------------------------------");
+  lines.push(`OVERALL TOTAL : ${overallTotal.toLocaleString()} yds`);
 
-    const months = {
-      jan:0,feb:1,mar:2,apr:3,may:4,jun:5,
-      jul:6,aug:7,sep:8,oct:9,nov:10,dec:11
-    };
-
-    const selectedMonthIndex = months[monthPerDayDyeingMatch[1]];
-    const year = new Date().getFullYear();
-    const daysInMonth = new Date(year, selectedMonthIndex+1, 0).getDate();
-
-    let lines = [];
-    let grandTotal = 0;
-    let highest = 0;
-    let lowest = null;
-
-    for(let d=1; d<=daysInMonth; d++){
-
-      const sumProcess = (sheet) =>
-        db[sheet]?.slice(1).reduce((total,row)=>{
-          const rowDate = parseSheetDate(row[0]);
-          if(rowDate &&
-             rowDate.getFullYear()===year &&
-             rowDate.getMonth()===selectedMonthIndex &&
-             rowDate.getDate()===d){
-            return total + safeNumber(row[6]);
-          }
-          return total;
-        },0) || 0;
-
-      const totalDye =
-        sumProcess("cpb") +
-        sumProcess("jigger") +
-        sumProcess("ex_jigger") +
-        sumProcess("napthol");
-
-      lines.push(
-        `${String(d).padStart(2,"0")} : ${totalDye.toLocaleString()} yds`
-      );
-
-      grandTotal += totalDye;
-
-      if(totalDye > highest) highest = totalDye;
-      if(lowest === null || totalDye < lowest) lowest = totalDye;
-    }
-
-    return res.json({
-      reply:`
-${monthPerDayDyeingMatch[1].toUpperCase()} DAILY DYEING
-----------------------------------
-${lines.join("\n")}
-----------------------------------
-Highest : ${highest.toLocaleString()}
-Lowest  : ${lowest.toLocaleString()}
-----------------------------------
-TOTAL   : ${grandTotal.toLocaleString()} yds
-`
-    });
-  }
+  return res.json({ reply: lines.join("\n") });
+}
   /* ===================== PER DAY ===================== */
 
   const perDayMatch=question.match(/(cpb|jigger|ex-jigger|exjigger|napthol|singing|marcerise|bleach|folding)\s*per\s*day/);
