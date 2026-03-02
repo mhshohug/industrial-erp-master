@@ -125,6 +125,88 @@ router.post("/ask", async (req, res) => {
   }
 
   // =====================================================
+  // DATE WISE REPORT (ALL STN)  e.g. 1 feb
+  // =====================================================
+  const dateMatch = question.match(/(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
+
+  if (dateMatch && !question.includes("stn")) {
+
+    const day = dateMatch[1].padStart(2, "0");
+    const month = dateMatch[2];
+
+    let machineTotals = {};
+    let processTotals = {};
+    let machineGrandTotal = 0;
+    let processGrandTotal = 0;
+
+    for (let stn in STN_GIDS) {
+
+      const gid = STN_GIDS[stn];
+      const db = await fetchSheetByGid(gid);
+      if (!db || db.length <= 1) continue;
+
+      const headers = db[0];
+      const rows = db.slice(1);
+
+      const filteredRows = rows.filter(r =>
+        r[0] &&
+        r[0].toLowerCase().includes(day) &&
+        r[0].toLowerCase().includes(month)
+      );
+
+      if (filteredRows.length === 0) continue;
+
+      const getTotal = (index) =>
+        filteredRows.reduce((t,r)=>t+(parseFloat(r[index])||0),0);
+
+      let stnTotal = 0;
+
+      headers.forEach((h,i)=>{
+        if (i === 0) return;
+
+        const total = getTotal(i);
+
+        if (total !== 0) {
+
+          stnTotal += total;
+
+          if (!processTotals[h])
+            processTotals[h] = 0;
+
+          processTotals[h] += total;
+        }
+      });
+
+      machineTotals[stn] = stnTotal;
+      machineGrandTotal += stnTotal;
+    }
+
+    let output =
+`📅 ${day} ${month.toUpperCase()} REPORT
+━━━━━━━━━━━━━━━━━━
+
+🏭 Machine Wish
+━━━━━━━━━━━━━━━━━━
+`;
+
+    for (let stn in machineTotals) {
+      output += `☑ STN ${stn} : ${machineTotals[stn].toLocaleString()}\n`;
+    }
+
+    output += `Total = ${machineGrandTotal.toLocaleString()}\n`;
+
+    output += `\n━━━━━━━━━━━━━━━━━━\n⚙ Process Wish\n━━━━━━━━━━━━━━━━━━\n`;
+
+    for (let process in processTotals) {
+      output += `☑ ${process} : ${processTotals[process].toLocaleString()}\n`;
+      processGrandTotal += processTotals[process];
+    }
+
+    output += `Total = ${processGrandTotal.toLocaleString()}\n`;
+
+    return res.json({ reply: output });
+  }
+  // =====================================================
   // SINGLE STN REPORT
   // =====================================================
   const machineMatch = question.match(/stn\s?([1-5])/);
