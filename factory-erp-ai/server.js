@@ -361,6 +361,70 @@ if(dateInput && !q.match(/sill\s*(\d+)/) && !q.match(/^\d+$/)){
     return res.json({ reply: html });
 }
 
+    // ===== লট সার্চ =====
+let lotMatch = q.match(/lot\s*(\d+)/i) || q.match(/\b(\d{5,6})\b/); // 5-6 ডিজিটের নম্বর
+
+if(lotMatch && !q.includes("sill")){
+
+    let lotNumber = lotMatch[1] || lotMatch[0];
+    
+    // লট নম্বর থেকে কমা এবং স্পেস রিমুভ
+    lotNumber = lotNumber.toString().replace(/,/g, '').trim();
+    
+    // ডিবাগ জন্য কনসোল
+    console.log("Searching for lot:", lotNumber);
+    
+    // গ্রে শীটে খোঁজা - Lot কলাম (ইনডেক্স 6)
+    const gRow = grey.find(r => {
+        const greyLot = (r[6] || "").replace(/,/g, '').trim();
+        return greyLot === lotNumber;
+    });
+
+    if(!gRow) {
+        // আবার চেষ্টা করি - যদি লট নম্বর sill এর সাথে মিলে
+        const sillMatch = grey.find(r => {
+            const greySill = (r[2] || "").trim();
+            return greySill === lotNumber;
+        });
+        
+        if(sillMatch) {
+            return res.json({ reply: `🔍 আপনি কি Sill ${lotNumber} খুঁজছেন? Sill এর জন্য শুধু নম্বর দিন (যেমন: ${lotNumber})` });
+        }
+        
+        return res.json({ reply: `❌ Lot ${lotNumber} পাওয়া যায়নি।` });
+    }
+
+    const sill = (gRow[2] || "").trim();
+    const party = gRow[3] || "Unknown";
+    const quality = gRow[4] || "Unknown";
+    const lotSize = parseFloat((gRow[6] || "").replace(/,/g, '')) || 0;
+
+    // রোলিং ডাটা কালেক্ট করা
+    const rolling = roll.reduce((a, r) => {
+        const rollSill = (r[1] || "").trim();
+        if(rollSill === sill) {
+            return a + (parseFloat((r[7] || "").replace(/,/g, '')) || 0);
+        }
+        return a;
+    }, 0);
+
+    const diff = rolling - lotSize;
+    const diffClass = diff >= 0 ? 'positive' : 'negative';
+    const diffText = diff >= 0 ? 'Extra' : 'Short';
+
+    let html = htmlWrapper(`Lot ${lotNumber}`, `
+        <table class="erp-table">
+            <tr><th style="width:40%">Party</th><td>${party}</td></tr>
+            <tr><th>Sill No</th><td>${sill}</td></tr>
+            <tr><th>Quality</th><td>${quality}</td></tr>
+            <tr><th>Lot Size</th><td>${formatNumber(lotSize)} yds</td></tr>
+            <tr><th>Total Rolling</th><td>${formatNumber(rolling)} yds</td></tr>
+            <tr><th>Difference</th><td class="${diffClass}">${diffText}: ${formatNumber(Math.abs(diff))} yds</td></tr>
+        </table>
+    `);
+
+    return res.json({ reply: html });
+}
 // ===== সিল রিপোর্ট =====
 let sMatch = q.match(/(\d+)/);
 if(sMatch && !q.includes("total")){
@@ -406,58 +470,6 @@ if(sMatch && !q.includes("total")){
             📍 Dyeing: ${formatNumber(totalDyeing)} yds<br>
             <span class="${diffClass}">📊 ${diffText}: ${formatNumber(Math.abs(diff))} yds</span>
         </div>
-    `);
-
-    return res.json({ reply: html });
-}
-
-// ===== লট সার্চ =====
-let lotMatch = q.match(/lot\s*(\d+)/i) || q.match(/^(\d{4,6})$/);
-
-if(lotMatch && !q.includes("sill")){
-
-    let lotNumber = lotMatch[1] || lotMatch[0];
-    
-    // লট নম্বর থেকে কমা এবং স্পেস রিমুভ
-    lotNumber = lotNumber.toString().replace(/,/g, '').trim();
-    
-    // গ্রে শীটে খোঁজা
-    const gRow = grey.find(r => {
-        const greyLot = (r[6] || "").replace(/,/g, '').trim();
-        return greyLot === lotNumber;
-    });
-
-    if(!gRow) {
-        return res.json({ reply: `❌ Lot ${lotNumber} পাওয়া যায়নি।` });
-    }
-
-    const sill = (gRow[2] || "").trim();
-    const party = gRow[3] || "Unknown";
-    const quality = gRow[4] || "Unknown";
-    const lotSize = parseFloat((gRow[6] || "").replace(/,/g, '')) || 0;
-
-    // রোলিং ডাটা কালেক্ট করা
-    const rolling = roll.reduce((a, r) => {
-        const rollSill = (r[1] || "").trim();
-        if(rollSill === sill) {
-            return a + (parseFloat((r[7] || "").replace(/,/g, '')) || 0);
-        }
-        return a;
-    }, 0);
-
-    const diff = rolling - lotSize;
-    const diffClass = diff >= 0 ? 'positive' : 'negative';
-    const diffText = diff >= 0 ? 'Extra' : 'Short';
-
-    let html = htmlWrapper(`Lot ${lotNumber}`, `
-        <table class="erp-table">
-            <tr><th style="width:40%">Party</th><td>${party}</td></tr>
-            <tr><th>Sill No</th><td>${sill}</td></tr>
-            <tr><th>Quality</th><td>${quality}</td></tr>
-            <tr><th>Lot Size</th><td>${formatNumber(lotSize)} yds</td></tr>
-            <tr><th>Total Rolling</th><td>${formatNumber(rolling)} yds</td></tr>
-            <tr><th>Difference</th><td class="${diffClass}">${diffText}: ${formatNumber(Math.abs(diff))} yds</td></tr>
-        </table>
     `);
 
     return res.json({ reply: html });
