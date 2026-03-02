@@ -95,43 +95,86 @@ router.post("/ask", async (req, res) => {
       machineGrandTotal += stnTotal;
     }
 
-    // ================= FORMAT 2 COLUMN =================
+    if (question.startsWith("total")) {
 
-    const leftTitle = "🏭 Machine Wish";
-    const rightTitle = "⚙ Process Wish";
+  let monthMatch = question.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
+  let selectedMonth = monthMatch ? monthMatch[1] : currentMonth;
 
-    const leftLines = [];
-    const rightLines = [];
+  let machineTotals = {};
+  let processTotals = {};
 
-    for (let stn in machineTotals) {
-      leftLines.push(`☑ STN ${stn} : ${machineTotals[stn].toLocaleString()}`);
-    }
-    leftLines.push(`Total = ${machineGrandTotal.toLocaleString()}`);
+  let machineGrandTotal = 0;
+  let processGrandTotal = 0;
 
-    for (let process in processTotals) {
-      rightLines.push(`☑ ${process} : ${processTotals[process].toLocaleString()}`);
-      processGrandTotal += processTotals[process];
-    }
-    rightLines.push(`Total = ${processGrandTotal.toLocaleString()}`);
+  for (let stn in STN_GIDS) {
 
-    const maxLines = Math.max(leftLines.length, rightLines.length);
+    const gid = STN_GIDS[stn];
+    const db = await fetchSheetByGid(gid);
+    if (!db || db.length <= 1) continue;
 
-    while (leftLines.length < maxLines) leftLines.push("");
-    while (rightLines.length < maxLines) rightLines.push("");
+    const headers = db[0];
+    const rows = db.slice(1);
 
-    let output =
+    const filteredRows =
+      rows.filter(r =>
+        r[0] &&
+        r[0].toLowerCase().includes(selectedMonth)
+      );
+
+    if (filteredRows.length === 0) continue;
+
+    const getTotal = (index) =>
+      filteredRows.reduce((t,r)=>t+(parseFloat(r[index])||0),0);
+
+    let stnTotal = 0;
+
+    headers.forEach((h,i)=>{
+      if (i === 0) return;
+
+      const total = getTotal(i);
+
+      if (total !== 0) {
+
+        stnTotal += total;
+
+        if (!processTotals[h])
+          processTotals[h] = 0;
+
+        processTotals[h] += total;
+      }
+    });
+
+    machineTotals[stn] = stnTotal;
+    machineGrandTotal += stnTotal;
+  }
+
+  // ================= OUTPUT =================
+
+  let output =
 `📊 ${selectedMonth.toUpperCase()} REPORT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${leftTitle.padEnd(30)} | ${rightTitle}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━
+
+🏭 Machine Wish
+━━━━━━━━━━━━━━━━━━
 `;
 
-    for (let i = 0; i < maxLines; i++) {
-      output += `${leftLines[i].padEnd(30)} | ${rightLines[i]}\n`;
-    }
-
-    return res.json({ reply: "```" + output + "```" });
+  for (let stn in machineTotals) {
+    output += `☑ STN ${stn} : ${machineTotals[stn].toLocaleString()}\n`;
   }
+
+  output += `Total = ${machineGrandTotal.toLocaleString()}\n`;
+
+  output += `\n━━━━━━━━━━━━━━━━━━\n⚙ Process Wish\n━━━━━━━━━━━━━━━━━━\n`;
+
+  for (let process in processTotals) {
+    output += `☑ ${process} : ${processTotals[process].toLocaleString()}\n`;
+    processGrandTotal += processTotals[process];
+  }
+
+  output += `Total = ${processGrandTotal.toLocaleString()}\n`;
+
+  return res.json({ reply: output });
+}
   const machineMatch = question.match(/stn\s?([1-5])/);
 
   if (machineMatch) {
