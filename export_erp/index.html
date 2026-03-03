@@ -185,6 +185,46 @@ header{
  font-size:11px;
 }
 
+/* ===== হেল্প কমান্ডের জন্য স্পেশাল স্টাইল ===== */
+.help-box {
+  background: white;
+  color: black;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.help-box .help-title {
+  font-weight: bold;
+  font-size: 15px;
+  margin-bottom: 10px;
+  color: #22c55e;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 5px;
+}
+
+.help-box .help-section {
+  margin-bottom: 12px;
+}
+
+.help-box .help-section-title {
+  font-weight: bold;
+  color: #2d3748;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.help-box .help-item {
+  margin-left: 10px;
+  margin-bottom: 2px;
+}
+
+.help-box .help-command {
+  font-weight: bold;
+  color: #2563eb;
+}
+
 /* ===== কুইক বার ===== */
 #quickBar{
  position:fixed;
@@ -282,11 +322,12 @@ button:hover{
 
 <div id="chat">
 <div class="msg bot">
-ওস্তাদ, সিল নম্বর বা কমান্ড লিখুন।
+ওস্তাদ, সিল নম্বর বা কমান্ড লিখুন। "help" টাইপ করে দেখুন।
 </div>
 </div>
 
 <div id="quickBar">
+<span class="quick-btn" onclick="quick('help')">help</span>
 <span class="quick-btn" onclick="quick('totall')">totall</span>
 <span class="quick-btn" onclick="quick('today')">today</span>
 <span class="quick-btn" onclick="quick('cpb per day')">cpb per day</span>
@@ -332,6 +373,49 @@ function send(){
 
   add(text, "user");
   input.value = "";
+
+  // ========== হেল্প কমান্ড চেক ==========
+  if(text.toLowerCase() === "help") {
+    const helpHTML = `
+      <div class="help-box">
+        <div class="help-title">📚 AVAILABLE COMMANDS</div>
+        
+        <div class="help-section">
+          <div class="help-section-title">🏭 GENERAL</div>
+          <div class="help-item">• <span class="help-command">totall</span> - Factory total summary</div>
+          <div class="help-item">• <span class="help-command">today</span> - Today's production</div>
+          <div class="help-item">• <span class="help-command">total dyeing</span> - Total dyeing quantity</div>
+        </div>
+        
+        <div class="help-section">
+          <div class="help-section-title">📊 PER DAY REPORTS</div>
+          <div class="help-item">• <span class="help-command">cpb per day</span> - CPB daily production</div>
+          <div class="help-item">• <span class="help-command">jigger per day</span> - Jigger daily production</div>
+          <div class="help-item">• <span class="help-command">napthol per day</span> - Napthol daily production</div>
+        </div>
+        
+        <div class="help-section">
+          <div class="help-section-title">🔍 SEARCH BY</div>
+          <div class="help-item">• <span class="help-command">sill 590</span> - Sill number report</div>
+          <div class="help-item">• <span class="help-command">3 feb cpb</span> - Date + process</div>
+          <div class="help-item">• <span class="help-command">party RB design</span> - Party search</div>
+          <div class="help-item">• <span class="help-command">feb dyeing</span> - Monthly dyeing</div>
+          <div class="help-item">• <span class="help-command">feb per day dyeing</span> - Monthly table</div>
+          <div class="help-item">• <span class="help-command">feb rolling inspection</span> - Rolling inspection</div>
+        </div>
+        
+        <div class="help-section">
+          <div class="help-section-title">🔢 LOT SEARCH</div>
+          <div class="help-item">• <span class="help-command">15267</span> - Direct lot number (5-6 digits)</div>
+          <div class="help-item">• <span class="help-command">lot 15267</span> - Lot with keyword</div>
+        </div>
+      </div>
+    `;
+    
+    add(helpHTML, "bot");
+    return;
+  }
+  // ========== হেল্প কমান্ড শেষ ==========
 
   // Loading
   add("⏳ Loading...", "bot");
