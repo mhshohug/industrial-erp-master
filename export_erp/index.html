@@ -337,7 +337,7 @@ function send(){
   add("⏳ Loading...", "bot");
   var loading = chat.lastChild;
 
-  fetch("/factory/api/ask", {
+  fetch("/export/api/ask", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({question: text})
