@@ -1,15 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>All Stenter Report</title>
 
 <style>
 body{
   margin:0;
-  font-family:Arial;
+  font-family: Arial, sans-serif;
   background:#0f172a;
   color:white;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* ===== FIXED TITLE ===== */
@@ -24,6 +29,7 @@ body{
   font-size:18px;
   font-weight:bold;
   z-index:1000;
+  box-sizing: border-box;
 }
 
 #printBtn{
@@ -42,7 +48,7 @@ body{
 /* ===== FIXED COMMAND BAR ===== */
 #topBar{
   position:fixed;
-  top:50px;
+  top:52px;
   left:0;
   width:100%;
   background:#111827;
@@ -50,6 +56,7 @@ body{
   overflow-x:auto;
   white-space:nowrap;
   z-index:999;
+  box-sizing: border-box;
 }
 
 .cmd{
@@ -66,32 +73,170 @@ body{
   background:#374151;
 }
 
-/* ===== CHAT AREA ===== */
+/* ===== CHAT AREA - ফিক্সড সাইজ ===== */
 #chat{
-  margin-top:110px;
-  margin-bottom:70px;
-  padding:15px;
-  height:calc(100vh - 180px);
-  overflow-y:auto;
+  position: fixed;
+  top: 100px;
+  bottom: 70px;
+  left: 0;
+  right: 0;
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
+/* সাধারণ মেসেজ */
 .message{
-  max-width:85%;
-  padding:12px;
-  margin-bottom:10px;
-  border-radius:12px;
-  line-height:1.6;
-  word-wrap:break-word;
-  font-size:14px;
+  max-width: 90%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  font-size: 14px;
 }
 
 .user{
   background:#22c55e;
-  margin-left:auto;
+  align-self: flex-end;
+  margin-left: auto;
 }
 
 .bot{
   background:#1e293b;
+  align-self: flex-start;
+}
+
+/* ===== রিপোর্ট স্টাইল - স্ক্রল ছাড়াই ===== */
+.report {
+  width: 100%;
+  background: white;
+  color: black;
+  border-radius: 6px;
+  padding: 8px;
+  margin: 3px 0;
+  box-sizing: border-box;
+  font-size: 12px;
+  overflow: visible;
+}
+
+/* টেবিল অটো-ফিট - কোনো স্ক্রলবার নেই */
+.report table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  table-layout: auto !important;
+  word-break: break-word !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+.report th {
+  background: #2d3748;
+  color: white;
+  padding: 4px 2px;
+  font-size: 10px;
+  font-weight: bold;
+  text-align: center;
+  border: 1px solid #1a202c;
+}
+
+.report td {
+  padding: 3px 2px;
+  border: 1px solid #cbd5e0;
+  text-align: center;
+  white-space: normal !important;
+  word-break: break-word !important;
+  font-size: 11px;
+}
+
+.report td:first-child {
+  font-weight: bold;
+  background: #f0f4f8;
+  white-space: normal !important;
+}
+
+.report tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.report .positive {
+  color: #0b5e0b;
+  font-weight: bold;
+}
+
+.report .negative {
+  color: #b22222;
+  font-weight: bold;
+}
+
+.report .summary-box {
+  background: #edf2f7;
+  padding: 5px;
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 4px;
+  border-left: 3px solid #22c55e;
+}
+
+/* STN ব্লক স্টাইল - স্ক্রল ছাড়াই */
+.report .stn-block {
+  margin: 5px 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.report .stn-title {
+  background: #2d3748;
+  color: white;
+  padding: 4px 8px;
+  font-weight: bold;
+  font-size: 11px;
+}
+
+.report .process-row {
+  display: flex;
+  padding: 3px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 11px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.report .process-row:last-child {
+  border-bottom: none;
+}
+
+.report .process-name {
+  flex: 1;
+  font-weight: 500;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.report .process-value {
+  font-weight: bold;
+  color: #2d3748;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.report .total-row {
+  background: #f0f4f8;
+  padding: 5px 8px;
+  font-weight: bold;
+  border-top: 2px solid #cbd5e0;
+  font-size: 11px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* টেবিলের মধ্যে কোনো স্ক্রলবার আসবে না */
+.report::-webkit-scrollbar {
+  display: none;
 }
 
 /* ===== INPUT ===== */
@@ -101,27 +246,47 @@ body{
   left:0;
   width:100%;
   display:flex;
-  padding:10px;
+  padding:8px;
   background:#111827;
+  box-sizing: border-box;
+  gap: 6px;
+  z-index:1000;
 }
 
 #text{
   flex:1;
-  padding:12px;
+  padding:10px 14px;
   border:none;
-  border-radius:10px;
-  font-size:15px;
+  border-radius:8px;
+  font-size:14px;
+  outline: none;
 }
 
 #send{
-  margin-left:8px;
-  padding:12px 16px;
+  padding:10px 18px;
   border:none;
-  border-radius:10px;
+  border-radius:8px;
   background:#22c55e;
   color:white;
-  font-size:15px;
+  font-size:14px;
   cursor:pointer;
+  min-width: 65px;
+}
+
+#send:hover {
+  background:#16a34a;
+}
+
+/* ===== স্ক্রলবার - শুধু চ্যাটের জন্য ===== */
+#chat::-webkit-scrollbar {
+  width: 4px;
+}
+#chat::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+#chat::-webkit-scrollbar-thumb {
+  background: #22c55e;
+  border-radius: 4px;
 }
 </style>
 </head>
@@ -142,7 +307,11 @@ body{
   <span class="cmd" onclick="quick('stn 3 mar')">STN 3</span>
 </div>
 
-<div id="chat"></div>
+<div id="chat">
+  <div class="message bot">
+    ওস্তাদ, কমান্ড লিখুন (mar, total mar, 1 mar, stn 1 mar)
+  </div>
+</div>
 
 <div id="inputBox">
   <input id="text" placeholder="Type Date / STN / Process..." />
@@ -159,8 +328,19 @@ let lastUserQuery = "";
 
 function addMessage(content, type){
   const div = document.createElement("div");
-  div.className = "message " + type;
-  div.innerHTML = content;
+  
+  // চেক করছে কন্টেন্টে HTML টেবিল আছে কিনা
+  if(content && (content.includes("<table") || content.includes("stn-block"))) {
+    div.className = "report";
+    div.innerHTML = content;
+  } else {
+    div.className = "message " + type;
+    if(content) {
+      content = content.replace(/\n/g, "<br>");
+      div.innerHTML = content;
+    }
+  }
+
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
@@ -180,9 +360,10 @@ async function sendMessage(){
   text.value = "";
 
   const loadingDiv = document.createElement("div");
-  loadingDiv.className="message bot";
-  loadingDiv.innerHTML="Searching...";
+  loadingDiv.className = "message bot";
+  loadingDiv.innerHTML = "🔍 Searching...";
   chat.appendChild(loadingDiv);
+  chat.scrollTop = chat.scrollHeight;
 
   try{
     const res = await fetch("/allstn/api/ask",{
@@ -193,17 +374,19 @@ async function sendMessage(){
 
     const data = await res.json();
     loadingDiv.remove();
-    addMessage(data.reply.replace(/\n/g,"<br>"), "bot");
+    addMessage(data.reply || "No reply", "bot");
 
-  }catch(err){
+  } catch(err){
     loadingDiv.remove();
     addMessage("❌ Server Error", "bot");
+    console.error(err);
   }
 }
 
-/* ✅ SEND FIX */
+/* সেন্ড বাটন */
 sendBtn.addEventListener("click", sendMessage);
 
+/* এন্টার কী */
 text.addEventListener("keydown", function(e){
   if(e.key === "Enter"){
     e.preventDefault();
@@ -211,16 +394,22 @@ text.addEventListener("keydown", function(e){
   }
 });
 
-/* ✅ PRINT ONLY LAST REPORT */
+/* প্রিন্ট ফাংশন */
 printBtn.addEventListener("click", function(){
 
-  const botMessages = document.querySelectorAll(".bot");
-  if(botMessages.length === 0) return;
+  const reports = document.querySelectorAll(".report, .bot");
+  if(reports.length === 0) return;
 
-  const lastReport = botMessages[botMessages.length - 1].innerHTML;
+  const lastReport = reports[reports.length - 1].innerHTML;
 
   const today = new Date();
-  const dateTime = today.toLocaleString();
+  const dateTime = today.toLocaleString('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 
   const newWindow = window.open("", "", "width=900,height=700");
 
@@ -229,19 +418,47 @@ printBtn.addEventListener("click", function(){
     <head>
       <title>ISO Production Report</title>
       <style>
-        body{ font-family:Arial; padding:40px; }
-        .header{text-align:center;margin-bottom:20px;}
-        .company{font-size:24px;font-weight:bold;}
-        .address{font-size:14px;color:#555;margin-top:4px;}
-        .erp{font-size:16px;font-weight:bold;margin-top:6px;}
-        .line{height:2px;background:#000;width:70%;margin:15px auto;}
-        .meta{text-align:left;margin-top:10px;}
-        .footer{
-          margin-top:60px;
-          display:flex;
-          justify-content:space-between;
-          font-size:13px;
+        body { 
+          font-family: Arial; 
+          padding: 30px; 
+          max-width: 1000px;
+          margin: 0 auto;
         }
+        .header { text-align: center; margin-bottom: 20px; }
+        .company { font-size: 24px; font-weight: bold; }
+        .address { font-size: 14px; color: #555; margin-top: 4px; }
+        .erp { font-size: 16px; font-weight: bold; margin-top: 6px; }
+        .line { height: 2px; background: #000; width: 70%; margin: 15px auto; }
+        .meta { 
+          background: #f5f5f5; 
+          padding: 10px; 
+          border-radius: 5px; 
+          margin: 15px 0;
+        }
+        table { 
+          width: 100%; 
+          border-collapse: collapse; 
+          margin: 15px 0;
+          font-size: 12px;
+          table-layout: auto;
+          word-break: break-word;
+        }
+        th, td { 
+          border: 1px solid #000; 
+          padding: 6px; 
+          text-align: center;
+          word-break: break-word; 
+        }
+        th { background: #f2f2f2; }
+        .footer {
+          margin-top: 40px;
+          display: flex;
+          justify-content: space-between;
+          font-size: 13px;
+          border-top: 1px solid #ccc;
+          padding-top: 15px;
+        }
+        hr { margin: 15px 0; border: 1px solid #ddd; }
       </style>
     </head>
     <body>
@@ -249,25 +466,26 @@ printBtn.addEventListener("click", function(){
     <div class="header">
       <div class="company">Sukhy Dyeing and Finishing Mills LTD.</div>
       <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
-      <div class="erp">Sukhy ERP</div>
+      <div class="erp">Sukhy ERP - All Stenter Report</div>
       <div class="line"></div>
     </div>
 
     <div class="meta">
-      <b>Query:</b> ${lastUserQuery}<br>
-      <b>Generated:</b> ${dateTime}
+      <b>🔍 Query:</b> ${lastUserQuery}<br>
+      <b>📅 Generated:</b> ${dateTime}
     </div>
 
     <hr>
+    
     ${lastReport}
 
     <div class="footer">
       <div>
-        Prepared By: Ruhul Amin <br>
-        Developed By: Mehedi Hasan
+        <b>Prepared By:</b> Ruhul Amin<br>
+        <b>Developed By:</b> Mehedi Hasan
       </div>
       <div>
-        Signature: ___________________________
+        <b>Signature:</b> ___________________________
       </div>
     </div>
 
@@ -279,6 +497,10 @@ printBtn.addEventListener("click", function(){
   newWindow.print();
 });
 
+// স্ক্রল টপ টু বটম
+function scrollToBottom() {
+  chat.scrollTop = chat.scrollHeight;
+}
 </script>
 
 </body>
