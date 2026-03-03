@@ -22,6 +22,95 @@ const STN_GIDS = {
 };
 
 // ===============================
+// HTML WRAPPER FUNCTION
+// ===============================
+const htmlWrapper = (title, content) => {
+    return `
+    <style>
+        .report-container {
+            font-family: Arial, sans-serif;
+            background: #ffffff;
+            color: #1a202c;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 5px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .report-header {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2d3748;
+            padding: 8px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border-left: 4px solid #22c55e;
+        }
+        .stn-block {
+            margin: 10px 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .stn-title {
+            background: #2d3748;
+            color: white;
+            padding: 6px 10px;
+            font-weight: bold;
+        }
+        .process-row {
+            display: flex;
+            padding: 5px 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .process-row:last-child {
+            border-bottom: none;
+        }
+        .process-name {
+            flex: 1;
+            font-weight: 500;
+        }
+        .process-value {
+            font-weight: bold;
+            color: #2d3748;
+        }
+        .total-row {
+            background: #f0f4f8;
+            padding: 8px 10px;
+            font-weight: bold;
+            border-top: 2px solid #cbd5e0;
+        }
+        .summary-box {
+            background: #f0f4f8;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #22c55e;
+        }
+        .summary-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2d3748;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #e2e8f0;
+            margin: 8px 0;
+        }
+        @media (max-width: 480px) {
+            .report-container { padding: 8px; }
+            .report-header { font-size: 14px; }
+            .process-row { font-size: 12px; }
+        }
+    </style>
+    <div class="report-container">
+        <div class="report-header">📊 ${title}</div>
+        ${content}
+    </div>
+    `;
+};
+
+// ===============================
 // METER → YDS CONVERSION
 // ===============================
 function toYds(meter){
@@ -42,6 +131,13 @@ async function fetchSheetByGid(gid) {
 }
 
 // ===============================
+// NUMBER FORMATTER
+// ===============================
+const formatNumber = (num) => {
+  return num.toLocaleString(undefined, {maximumFractionDigits: 2});
+};
+
+// ===============================
 // ASK ROUTE
 // ===============================
 router.post("/ask", async (req, res) => {
@@ -53,7 +149,7 @@ router.post("/ask", async (req, res) => {
   const currentMonth = months[now.getMonth()];
 
   // =====================================================
-  // 1️⃣ MONTH REPORT
+  // 1️⃣ MONTH REPORT (HTML VERSION)
   // =====================================================
   const monthOnlyMatch = question.match(/^(total\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/);
 
@@ -65,6 +161,9 @@ router.post("/ask", async (req, res) => {
     let processTotals = {};
     let machineGrandTotal = 0;
     let processGrandTotal = 0;
+
+    let machineRows = '';
+    let processRows = '';
 
     for (let stn in STN_GIDS) {
 
@@ -100,40 +199,51 @@ router.post("/ask", async (req, res) => {
 
       machineTotals[stn]=stnTotal;
       machineGrandTotal+=stnTotal;
+      
+      machineRows += `
+        <div class="process-row">
+          <span class="process-name">STN ${stn}</span>
+          <span class="process-value">${formatNumber(stnTotal)} YDS</span>
+        </div>
+      `;
     }
 
-    let output =
-`📊 ${selectedMonth.toUpperCase()} REPORT (YDS)
-━━━━━━━━━━━━━━━━━━
-
-🏭 Machine Wish
-━━━━━━━━━━━━━━━━━━
-`;
-
-    for(let stn in machineTotals){
-      output += `☑ STN ${stn} : ${machineTotals[stn]
-      .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
-    }
-
-    output += `Total = ${machineGrandTotal
-    .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
-
-    output += `\n━━━━━━━━━━━━━━━━━━\n⚙ Process Wish\n━━━━━━━━━━━━━━━━━━\n`;
-
+    // Process wise totals
     for(let p in processTotals){
-      output += `☑ ${p} : ${processTotals[p]
-      .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
-      processGrandTotal+=processTotals[p];
+      processRows += `
+        <div class="process-row">
+          <span class="process-name">${p}</span>
+          <span class="process-value">${formatNumber(processTotals[p])} YDS</span>
+        </div>
+      `;
+      processGrandTotal += processTotals[p];
     }
 
-    output += `Total = ${processGrandTotal
-    .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
+    let content = `
+      <div class="stn-block">
+        <div class="stn-title">🏭 MACHINE WISE</div>
+        ${machineRows}
+        <div class="total-row">
+          <span style="font-weight:bold">TOTAL</span>
+          <span style="float:right">${formatNumber(machineGrandTotal)} YDS</span>
+        </div>
+      </div>
+      
+      <div class="stn-block">
+        <div class="stn-title">⚙ PROCESS WISE</div>
+        ${processRows}
+        <div class="total-row">
+          <span style="font-weight:bold">TOTAL</span>
+          <span style="float:right">${formatNumber(processGrandTotal)} YDS</span>
+        </div>
+      </div>
+    `;
 
-    return res.json({ reply: output });
+    return res.json({ reply: htmlWrapper(`${selectedMonth.toUpperCase()} REPORT`, content) });
   }
 
   // =====================================================
-  // 2️⃣ DATE REPORT
+  // 2️⃣ DATE REPORT (HTML VERSION)
   // =====================================================
   const dateMatch = question.match(/^(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/);
 
@@ -144,11 +254,8 @@ router.post("/ask", async (req, res) => {
 
     let processSummary = {};
     let processGrandTotal = 0;
-
-    let output =
-`📅 ${day.toString().padStart(2,"0")} ${month.toUpperCase()} REPORT (YDS)
-━━━━━━━━━━━━━━━━━━
-`;
+    
+    let allStnContent = '';
 
     for (let stn in STN_GIDS) {
 
@@ -171,7 +278,7 @@ router.post("/ask", async (req, res) => {
         filteredRows.reduce((t,r)=>t+(parseFloat(r[i])||0),0);
 
       let stnTotal=0;
-      let block=`\n🏭 STN ${stn}\n━━━━━━━━━━━━━━━━━━\n`;
+      let stnRows = '';
 
       headers.forEach((h,i)=>{
         if(i===0) return;
@@ -180,36 +287,62 @@ router.post("/ask", async (req, res) => {
 
         if(total!==0){
           stnTotal+=total;
-          block+=`${h} : ${total
-          .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
+          stnRows += `
+            <div class="process-row">
+              <span class="process-name">${h}</span>
+              <span class="process-value">${formatNumber(total)} YDS</span>
+            </div>
+          `;
 
           if(!processSummary[h]) processSummary[h]=0;
           processSummary[h]+=total;
         }
       });
 
-      block+=`Total = ${stnTotal
-      .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
-
-      output+=block;
+      if(stnRows) {
+        allStnContent += `
+          <div class="stn-block">
+            <div class="stn-title">🏭 STN ${stn}</div>
+            ${stnRows}
+            <div class="total-row">
+              <span style="font-weight:bold">TOTAL</span>
+              <span style="float:right">${formatNumber(stnTotal)} YDS</span>
+            </div>
+          </div>
+        `;
+      }
     }
 
-    output+=`\n━━━━━━━━━━━━━━━━━━\n⚙ PROCESS SUMMARY (ALL STN)\n━━━━━━━━━━━━━━━━━━\n`;
-
+    // Process summary
+    let processRows = '';
     for(let p in processSummary){
-      output+=`${p} : ${processSummary[p]
-      .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
-      processGrandTotal+=processSummary[p];
+      processRows += `
+        <div class="process-row">
+          <span class="process-name">${p}</span>
+          <span class="process-value">${formatNumber(processSummary[p])} YDS</span>
+        </div>
+      `;
+      processGrandTotal += processSummary[p];
     }
 
-    output+=`Total = ${processGrandTotal
-    .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
+    let content = allStnContent + `
+      <div class="stn-block">
+        <div class="stn-title">⚙ PROCESS SUMMARY (ALL STN)</div>
+        ${processRows}
+        <div class="total-row">
+          <span style="font-weight:bold">TOTAL</span>
+          <span style="float:right">${formatNumber(processGrandTotal)} YDS</span>
+        </div>
+      </div>
+    `;
 
-    return res.json({ reply: output });
+    return res.json({ 
+      reply: htmlWrapper(`${day.toString().padStart(2,"0")} ${month.toUpperCase()} REPORT`, content) 
+    });
   }
 
   // =====================================================
-  // 3️⃣ SINGLE STN REPORT
+  // 3️⃣ SINGLE STN REPORT (HTML VERSION)
   // =====================================================
   const stnMatch = question.match(/^stn\s?([1-5])(\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))?$/);
 
@@ -220,41 +353,66 @@ router.post("/ask", async (req, res) => {
 
     const db = await fetchSheetByGid(STN_GIDS[stnNumber]);
     if (!db || db.length <= 1)
-      return res.json({ reply:"❌ এই STN এ ডেটা নেই" });
+      return res.json({ reply: htmlWrapper("Error", "❌ এই STN এ ডেটা নেই") });
 
-    const headers=db[0];
-    const rows=db.slice(1);
+    const headers = db[0];
+    const rows = db.slice(1);
 
     const filteredRows = rows.filter(r =>
       r[0] && r[0].toLowerCase().includes(selectedMonth)
     );
 
     if(!filteredRows.length)
-      return res.json({ reply:"❌ ঐ মাসে ডেটা নেই" });
+      return res.json({ reply: htmlWrapper("Error", "❌ ঐ মাসে ডেটা নেই") });
 
-    const getTotal=i=>
+    const getTotal = i =>
       filteredRows.reduce((t,r)=>t+(parseFloat(r[i])||0),0);
 
-    let output =
-`📊 STN ${stnNumber} - ${selectedMonth.toUpperCase()} REPORT (YDS)
-━━━━━━━━━━━━━━━━━━
-`;
+    let stnRows = '';
+    let total = 0;
 
     headers.forEach((h,i)=>{
       if(i===0) return;
 
-      const total = toYds(getTotal(i));
+      const val = toYds(getTotal(i));
 
-      if(total!==0)
-        output+=`${h} : ${total
-        .toLocaleString(undefined,{maximumFractionDigits:2})} YDS\n`;
+      if(val !== 0){
+        stnRows += `
+          <div class="process-row">
+            <span class="process-name">${h}</span>
+            <span class="process-value">${formatNumber(val)} YDS</span>
+          </div>
+        `;
+        total += val;
+      }
     });
 
-    return res.json({ reply:output });
+    let content = `
+      <div class="stn-block">
+        <div class="stn-title">🏭 STN ${stnNumber}</div>
+        ${stnRows}
+        <div class="total-row">
+          <span style="font-weight:bold">TOTAL</span>
+          <span style="float:right">${formatNumber(total)} YDS</span>
+        </div>
+      </div>
+    `;
+
+    return res.json({ 
+      reply: htmlWrapper(`STN ${stnNumber} - ${selectedMonth.toUpperCase()}`, content) 
+    });
   }
 
   return res.json({
-    reply:"সঠিক কমান্ড লিখুন (mar, total mar, 1 mar, stn 3 mar)"
+    reply: htmlWrapper("Commands", `
+      <div style="padding:10px">
+        <b>সঠিক কমান্ড লিখুন:</b><br><br>
+        • mar (মাস রিপোর্ট)<br>
+        • total mar (মাস রিপোর্ট)<br>
+        • 1 mar (তারিখ রিপোর্ট)<br>
+        • stn 3 mar (স্টেশন রিপোর্ট)
+      </div>
+    `)
   });
 
 });
