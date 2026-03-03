@@ -22,7 +22,7 @@ const GID_MAP = {
   folding: "2051005815",
 };
 
-// ================= HTML WRAPPER ফাংশন =================
+// ================= HTML WRAPPER ফাংশন (ইম্প্রুভড) =================
 const htmlWrapper = (title, content) => {
     return `
     <style>
@@ -30,40 +30,51 @@ const htmlWrapper = (title, content) => {
             font-family: Arial, sans-serif;
             max-width: 100%;
             background: #ffffff;
-            padding: 8px;
+            padding: 5px;
             border-radius: 5px;
+            overflow-x: auto;
         }
         .erp-header {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             color: #1a202c;
             background: #e2e8f0;
-            padding: 6px 8px;
-            margin: 0 0 8px 0;
+            padding: 4px 6px;
+            margin: 0 0 5px 0;
             border-radius: 4px;
-            border-left: 4px solid #2d3748;
+            border-left: 3px solid #2d3748;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .erp-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 12px;
-            margin: 5px 0;
+            font-size: 11px;
+            margin: 3px 0;
             background: white;
+            table-layout: fixed;
         }
         .erp-table th {
             background: #2d3748;
             color: white;
-            padding: 6px 4px;
-            font-size: 11px;
+            padding: 4px 3px;
+            font-size: 10px;
             font-weight: bold;
             text-align: center;
             border: 1px solid #1a202c;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .erp-table td {
-            padding: 5px 4px;
+            padding: 3px;
             border: 1px solid #cbd5e0;
             color: #1a202c;
             background: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .erp-table tr:nth-child(even) td {
             background: #f8fafc;
@@ -74,49 +85,71 @@ const htmlWrapper = (title, content) => {
         .positive { 
             color: #0b5e0b; 
             font-weight: bold; 
-            background: #e6ffe6 !important;
         }
         .negative { 
             color: #b22222; 
             font-weight: bold;
-            background: #ffe6e6 !important;
         }
         .summary-box {
             background: #edf2f7;
-            padding: 8px;
-            margin-top: 8px;
-            font-size: 12px;
+            padding: 5px;
+            margin-top: 5px;
+            font-size: 11px;
             font-weight: bold;
-            border-radius: 4px;
-            border-left: 4px solid #2d3748;
+            border-radius: 3px;
+            border-left: 3px solid #2d3748;
             color: #1a202c;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .info-row {
             background: #f0f4f8;
-            padding: 6px 8px;
-            margin: 5px 0;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 4px 5px;
+            margin: 3px 0;
+            border-radius: 3px;
+            font-size: 11px;
             color: #1a202c;
             border: 1px solid #cbd5e0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .month-header {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: bold;
             color: #2d3748;
-            margin-bottom: 8px;
-            padding: 5px;
+            margin-bottom: 5px;
+            padding: 4px;
             background: #edf2f7;
-            border-radius: 4px;
+            border-radius: 3px;
             text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .stat-box {
             display: inline-block;
-            padding: 4px 8px;
-            margin: 2px;
+            padding: 2px 5px;
+            margin: 1px;
             background: #e2e8f0;
-            border-radius: 4px;
-            font-size: 11px;
+            border-radius: 3px;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+        /* Small screens */
+        @media (max-width: 480px) {
+            .erp-table {
+                font-size: 10px;
+            }
+            .erp-table th {
+                font-size: 9px;
+                padding: 3px 2px;
+            }
+            .erp-table td {
+                padding: 2px;
+                font-size: 9px;
+            }
         }
     </style>
     <div class="erp-container">
@@ -301,7 +334,7 @@ function getPartyFullSummary(db, partyName) {
   let totalLot = 0;
   let totalDye = 0;
 
-  greyRows.slice(-15).forEach(row => {
+  greyRows.slice(-10).forEach(row => {
 
     const sill = normalizeSill(row[1]);
     const quality = row[3] || "N/A";
@@ -415,18 +448,18 @@ router.post("/ask", async (req, res) => {
     
     let rows = '';
     data.days.forEach(d => {
-      rows += `<tr><td>${String(d.day).padStart(2, '0')}</td><td>${d.qty.toLocaleString()}</td></tr>`;
+      if(d.qty > 0) {
+        rows += `<tr><td>${String(d.day).padStart(2, '0')}</td><td>${d.qty.toLocaleString()}</td></tr>`;
+      }
     });
 
-    return htmlWrapper(`${proc.toUpperCase()} Daily Production - ${monthName}`, `
+    return htmlWrapper(`${proc.toUpperCase()} Daily`, `
       <table class="erp-table">
-        <tr><th>Date</th><th>Yards</th></tr>
-        ${rows}
+        <tr><th style="width:30%">Date</th><th style="width:70%">Yards</th></tr>
+        ${rows || '<tr><td colspan="2" style="text-align:center">No data</td></tr>'}
       </table>
       <div class="summary-box">
-        <span class="stat-box">📈 Highest: ${data.highest.toLocaleString()}</span>
-        <span class="stat-box">📉 Lowest: ${data.lowest.toLocaleString()}</span>
-        <span class="stat-box">📍 Total: ${data.total.toLocaleString()}</span>
+        H:${data.highest.toLocaleString()} L:${data.lowest.toLocaleString()} T:${data.total.toLocaleString()}
       </div>
     `);
   }
@@ -434,42 +467,34 @@ router.post("/ask", async (req, res) => {
   function formatFactorySummaryHTML(data) {
     return htmlWrapper(`Factory Summary`, `
       <table class="erp-table">
-        <tr><th colspan="2">PROCESS</th></tr>
+        <tr><th style="width:50%">Process</th><th style="width:50%">Yards</th></tr>
         <tr><td>Singing</td><td>${data.process.s.toLocaleString()}</td></tr>
         <tr><td>Mercerise</td><td>${data.process.m.toLocaleString()}</td></tr>
         <tr><td>Bleach</td><td>${data.process.b.toLocaleString()}</td></tr>
-        
-        <tr><th colspan="2">DYEING</th></tr>
         <tr><td>CPB</td><td>${data.dyeing.c.toLocaleString()}</td></tr>
         <tr><td>Jigger</td><td>${data.dyeing.j.toLocaleString()}</td></tr>
         <tr><td>Ex-Jigger</td><td>${data.dyeing.ex.toLocaleString()}</td></tr>
         <tr><td>Napthol</td><td>${data.dyeing.n.toLocaleString()}</td></tr>
-        
-        <tr><th colspan="2">FINISHING</th></tr>
         <tr><td>Folding</td><td>${data.folding.toLocaleString()}</td></tr>
       </table>
-      <div class="summary-box">📍 Total Dyeing: ${data.dyeTotal.toLocaleString()} yds</div>
+      <div class="summary-box">Dye Total: ${data.dyeTotal.toLocaleString()}</div>
     `);
   }
 
   function formatDateReportHTML(data, dateStr) {
-    return htmlWrapper(`Daily Report - ${dateStr}`, `
+    return htmlWrapper(`Daily - ${dateStr}`, `
       <table class="erp-table">
-        <tr><th colspan="2">PROCESS</th></tr>
+        <tr><th style="width:50%">Section</th><th style="width:50%">Yards</th></tr>
         <tr><td>Singing</td><td>${data.process.s.toLocaleString()}</td></tr>
         <tr><td>Mercerise</td><td>${data.process.m.toLocaleString()}</td></tr>
         <tr><td>Bleach</td><td>${data.process.b.toLocaleString()}</td></tr>
-        
-        <tr><th colspan="2">DYEING</th></tr>
         <tr><td>CPB</td><td>${data.dyeing.c.toLocaleString()}</td></tr>
         <tr><td>Jigger</td><td>${data.dyeing.j.toLocaleString()}</td></tr>
         <tr><td>Ex-Jigger</td><td>${data.dyeing.ex.toLocaleString()}</td></tr>
         <tr><td>Napthol</td><td>${data.dyeing.n.toLocaleString()}</td></tr>
-        
-        <tr><th colspan="2">FINISHING</th></tr>
         <tr><td>Folding</td><td>${data.folding.toLocaleString()}</td></tr>
       </table>
-      <div class="summary-box">📍 Total: ${data.total.toLocaleString()} yds</div>
+      <div class="summary-box">Total: ${data.total.toLocaleString()}</div>
     `);
   }
 
@@ -479,12 +504,11 @@ router.post("/ask", async (req, res) => {
     let rows = '';
     data.reports.forEach(r => {
       const status = r.lot - r.dyeTotal <= 0 ? 'positive' : 'negative';
-      const statusText = r.lot - r.dyeTotal <= 0 ? 'EXTRA' : 'SHORT';
+      const statusText = r.lot - r.dyeTotal <= 0 ? 'Extra' : 'Short';
       
       rows += `
       <tr>
         <td>${r.sill}</td>
-        <td>${r.quality}</td>
         <td>${r.lot.toLocaleString()}</td>
         <td>${r.dyeTotal.toLocaleString()}</td>
         <td class="${status}">${statusText}</td>
@@ -492,16 +516,12 @@ router.post("/ask", async (req, res) => {
     });
 
     return htmlWrapper(`Party Report`, `
-      <div class="info-row">Showing ${data.reports.length} of ${data.totalCount} entries</div>
+      <div class="info-row">${data.reports.length}/${data.totalCount}</div>
       <table class="erp-table">
-        <tr><th>Sill</th><th>Quality</th><th>Lot</th><th>Dye</th><th>Status</th></tr>
+        <tr><th style="width:25%">Sill</th><th style="width:25%">Lot</th><th style="width:25%">Dye</th><th style="width:25%">Status</th></tr>
         ${rows}
       </table>
-      <div class="summary-box">
-        📦 Total Lot: ${data.totalLot.toLocaleString()} yds<br>
-        🎨 Total Dye: ${data.totalDye.toLocaleString()} yds<br>
-        📊 Completion: ${completion}%
-      </div>
+      <div class="summary-box">Lot:${data.totalLot.toLocaleString()} Dye:${data.totalDye.toLocaleString()} (${completion}%)</div>
     `);
   }
 
@@ -513,53 +533,38 @@ router.post("/ask", async (req, res) => {
       const statusText = r.diff <= 0 ? 'EXTRA' : 'SHORT';
       
       output += `
-        <div class="info-row">
-          <b>Sill ${r.sill}</b> | ${r.party} | ${r.quality} | Lot: ${r.lot.toLocaleString()}
-        </div>
+        <div class="info-row"><b>S${r.sill}</b> ${r.party} ${r.quality} L:${r.lot.toLocaleString()}</div>
         <table class="erp-table">
-          <tr><th colspan="2">PROCESS</th></tr>
-          <tr><td>Singing</td><td>${r.process.s.toLocaleString()}</td></tr>
+          <tr><td style="width:50%">Singing</td><td style="width:50%">${r.process.s.toLocaleString()}</td></tr>
           <tr><td>Mercerise</td><td>${r.process.m.toLocaleString()}</td></tr>
           <tr><td>Bleach</td><td>${r.process.b.toLocaleString()}</td></tr>
-          
-          <tr><th colspan="2">DYEING</th></tr>
           <tr><td>CPB</td><td>${r.dyeing.c.toLocaleString()}</td></tr>
           <tr><td>Jigger</td><td>${r.dyeing.j.toLocaleString()}</td></tr>
           <tr><td>Ex-Jigger</td><td>${r.dyeing.ex.toLocaleString()}</td></tr>
           <tr><td>Napthol</td><td>${r.dyeing.n.toLocaleString()}</td></tr>
-          
-          <tr><th colspan="2">FINISHING</th></tr>
           <tr><td>Folding</td><td>${r.folding.toLocaleString()}</td></tr>
         </table>
-        <div class="summary-box ${statusClass}">
-          🎨 Total Dye: ${r.dyeTotal.toLocaleString()} yds<br>
-          📊 Status: ${statusText} ${Math.abs(r.diff).toLocaleString()} yds
-        </div>
-        ${idx < reports.length - 1 ? '<div style="margin: 10px 0;"></div>' : ''}
+        <div class="summary-box ${statusClass}">Dye:${r.dyeTotal.toLocaleString()} | ${statusText} ${Math.abs(r.diff).toLocaleString()}</div>
+        ${idx < reports.length - 1 ? '<div style="margin:5px 0;"></div>' : ''}
       `;
     });
 
-    return htmlWrapper(`Sill Production Report`, output);
+    return htmlWrapper(`Sill Report`, output);
   }
 
   function formatMonthSummaryHTML(monthName, process, dyeing, folding, dyeTotal) {
-    return htmlWrapper(`${monthName} Factory Summary`, `
+    return htmlWrapper(`${monthName} Summary`, `
       <table class="erp-table">
-        <tr><th colspan="2">PROCESS</th></tr>
         <tr><td>Singing</td><td>${process.s.toLocaleString()}</td></tr>
         <tr><td>Mercerise</td><td>${process.m.toLocaleString()}</td></tr>
         <tr><td>Bleach</td><td>${process.b.toLocaleString()}</td></tr>
-        
-        <tr><th colspan="2">DYEING</th></tr>
         <tr><td>CPB</td><td>${dyeing.c.toLocaleString()}</td></tr>
         <tr><td>Jigger</td><td>${dyeing.j.toLocaleString()}</td></tr>
         <tr><td>Ex-Jigger</td><td>${dyeing.ex.toLocaleString()}</td></tr>
         <tr><td>Napthol</td><td>${dyeing.n.toLocaleString()}</td></tr>
-        
-        <tr><th colspan="2">FINISHING</th></tr>
         <tr><td>Folding</td><td>${folding.toLocaleString()}</td></tr>
       </table>
-      <div class="summary-box">📍 Total Dyeing: ${dyeTotal.toLocaleString()} yds</div>
+      <div class="summary-box">Dye Total: ${dyeTotal.toLocaleString()}</div>
     `);
   }
 
@@ -572,7 +577,7 @@ router.post("/ask", async (req, res) => {
         <tr><td>Ex-Jigger</td><td>${ex.toLocaleString()}</td></tr>
         <tr><td>Napthol</td><td>${n.toLocaleString()}</td></tr>
       </table>
-      <div class="summary-box">📍 Total: ${total.toLocaleString()} yds</div>
+      <div class="summary-box">Total: ${total.toLocaleString()}</div>
     `);
   }
 
@@ -580,25 +585,22 @@ router.post("/ask", async (req, res) => {
 
   if(cleanInput==="help"){
     return res.json({
-      reply: htmlWrapper('Available Commands', `
-        <div style="padding:8px">
+      reply: htmlWrapper('Commands', `
+        <div style="padding:5px;font-size:11px">
           • cpb per day<br>
-          • jigger per day<br>
-          • napthol per day<br>
           • total dyeing<br>
           • totall<br>
           • 15 feb<br>
           • 15 feb cpb<br>
           • 12345 (lot)<br>
-          • noor (party)<br>
-          • noor cpb<br>
-          • feb per day dyeing (monthly table)
+          • party name<br>
+          • feb per day dyeing
         </div>
       `)
     });
   }
 
-/* ===================== ANY MONTH PER DAY DYEING (HTML TABLE) ===================== */
+/* ===================== ANY MONTH PER DAY DYEING ===================== */
 
 const monthPerDayDyeingMatch = question.match(
 /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+dyeing$/
@@ -660,38 +662,25 @@ if (monthPerDayDyeingMatch) {
         <td>${jigger.toLocaleString()}</td>
         <td>${ex.toLocaleString()}</td>
         <td>${napthol.toLocaleString()}</td>
-        <td><strong>${dayTotal.toLocaleString()}</strong></td>
+        <td>${dayTotal.toLocaleString()}</td>
       </tr>`;
     }
   }
 
   return res.json({
-    reply: htmlWrapper(`${monthName} Daily Dyeing`, `
-      <div class="month-header">📊 ${monthName} DAILY DYEING REPORT</div>
+    reply: htmlWrapper(`${monthName} Daily`, `
+      <div class="month-header">${monthName} DAILY DYEING</div>
       <table class="erp-table">
-        <thead>
-          <tr>
-            <th>DATE</th>
-            <th>CPB</th>
-            <th>JIGGER</th>
-            <th>EX-JIGGER</th>
-            <th>NAPTHOL</th>
-            <th>TOTAL</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml || '<tr><td colspan="6" style="text-align:center">No data found</td></tr>'}
-        </tbody>
-        <tfoot>
-          <tr style="background:#e2e8f0;font-weight:bold">
-            <td>TOTAL</td>
-            <td>${totalCPB.toLocaleString()}</td>
-            <td>${totalJigger.toLocaleString()}</td>
-            <td>${totalEx.toLocaleString()}</td>
-            <td>${totalNapthol.toLocaleString()}</td>
-            <td>${overallTotal.toLocaleString()}</td>
-          </tr>
-        </tfoot>
+        <tr><th>Dt</th><th>CPB</th><th>Jig</th><th>Ex</th><th>Nap</th><th>Tot</th></tr>
+        ${rowsHtml || '<tr><td colspan="6" style="text-align:center">No data</td></tr>'}
+        <tr style="background:#e2e8f0;font-weight:bold">
+          <td>Tot</td>
+          <td>${totalCPB.toLocaleString()}</td>
+          <td>${totalJigger.toLocaleString()}</td>
+          <td>${totalEx.toLocaleString()}</td>
+          <td>${totalNapthol.toLocaleString()}</td>
+          <td>${overallTotal.toLocaleString()}</td>
+        </tr>
       </table>
     `)
   });
@@ -771,18 +760,18 @@ if (monthPerDayDyeingMatch) {
 
     let tableRows = '';
     Object.entries(combined).forEach(([sill, data]) => {
-      tableRows += `<tr><td>${sill}</td><td>${data.party}</td><td>${data.qty.toLocaleString()}</td></tr>`;
+      tableRows += `<tr><td>${sill}</td><td>${data.party.substring(0,8)}</td><td>${data.qty.toLocaleString()}</td></tr>`;
     });
 
     const total = rows.reduce((t,r)=>t+safeNumber(r[6]),0);
 
     return res.json({
-      reply: htmlWrapper(`${proc.toUpperCase()} - ${dateObj.toDateString()}`, `
+      reply: htmlWrapper(`${proc.toUpperCase()} ${dateObj.getDate()} ${dateObj.toLocaleString('default',{month:'short'})}`, `
         <table class="erp-table">
-          <tr><th>Sill</th><th>Party</th><th>Yards</th></tr>
+          <tr><th style="width:25%">Sill</th><th style="width:45%">Party</th><th style="width:30%">Yds</th></tr>
           ${tableRows}
         </table>
-        <div class="summary-box">📍 Total: ${total.toLocaleString()} yds</div>
+        <div class="summary-box">Total: ${total.toLocaleString()}</div>
       `)
     });
   }
@@ -792,7 +781,7 @@ if (monthPerDayDyeingMatch) {
 
   if(dateObj){
     const data=getDateReport(db,dateObj);
-    return res.json({reply: formatDateReportHTML(data, dateObj.toDateString())});
+    return res.json({reply: formatDateReportHTML(data, `${dateObj.getDate()} ${dateObj.toLocaleString('default',{month:'short'})}`)});
   }
 /* ===================== MONTH SMART SUMMARY ===================== */
 
@@ -843,21 +832,21 @@ if (monthMatch) {
 
   if(section === "dyeing"){
     return res.json({
-      reply: htmlWrapper(`${monthMatch[1].toUpperCase()} Dyeing Summary`, `
+      reply: htmlWrapper(`${monthMatch[1].toUpperCase()} Dyeing`, `
         <table class="erp-table">
           <tr><td>CPB</td><td>${dyeing.c.toLocaleString()}</td></tr>
           <tr><td>Jigger</td><td>${dyeing.j.toLocaleString()}</td></tr>
           <tr><td>Ex-Jigger</td><td>${dyeing.ex.toLocaleString()}</td></tr>
           <tr><td>Napthol</td><td>${dyeing.n.toLocaleString()}</td></tr>
         </table>
-        <div class="summary-box">📍 Total: ${dyeTotal.toLocaleString()} yds</div>
+        <div class="summary-box">Total: ${dyeTotal.toLocaleString()}</div>
       `)
     });
   }
 
   if(section === "process"){
     return res.json({
-      reply: htmlWrapper(`${monthMatch[1].toUpperCase()} Process Summary`, `
+      reply: htmlWrapper(`${monthMatch[1].toUpperCase()} Process`, `
         <table class="erp-table">
           <tr><td>Singing</td><td>${process.s.toLocaleString()}</td></tr>
           <tr><td>Mercerise</td><td>${process.m.toLocaleString()}</td></tr>
@@ -870,7 +859,7 @@ if (monthMatch) {
   if(section === "folding"){
     return res.json({
       reply: htmlWrapper(`${monthMatch[1].toUpperCase()} Folding`, `
-        <div class="summary-box">📍 Total Folding: ${folding.toLocaleString()} yds</div>
+        <div class="summary-box">Folding: ${folding.toLocaleString()}</div>
       `)
     });
   }
@@ -925,12 +914,12 @@ if (monthMatch) {
     });
 
     return res.json({
-      reply: htmlWrapper(`${partyName.toUpperCase()} - ${proc.toUpperCase()}`, `
+      reply: htmlWrapper(`${partyName.substring(0,10)} - ${proc}`, `
         <table class="erp-table">
-          <tr><th>Sill</th><th>Yards</th></tr>
+          <tr><th style="width:40%">Sill</th><th style="width:60%">Yards</th></tr>
           ${rows || '<tr><td colspan="2">No data</td></tr>'}
         </table>
-        <div class="summary-box">📍 Total: ${total.toLocaleString()} yds</div>
+        <div class="summary-box">Total: ${total.toLocaleString()}</div>
       `)
     });
   }
@@ -944,8 +933,8 @@ if (monthMatch) {
 
   return res.json({
     reply: htmlWrapper('ERP Search', `
-      <div style="padding:8px">
-        Command not recognized. Type <b>help</b> for available commands.
+      <div style="padding:5px;font-size:11px">
+        Type <b>help</b> for commands
       </div>
     `)
   });
