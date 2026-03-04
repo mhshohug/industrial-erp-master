@@ -22,7 +22,7 @@ const STN_GIDS = {
 };
 
 // ===============================
-// HTML WRAPPER FUNCTION
+// HTML WRAPPER FUNCTION (আপডেট)
 // ===============================
 const htmlWrapper = (title, content) => {
     return `
@@ -92,6 +92,31 @@ const htmlWrapper = (title, content) => {
             margin-bottom: 5px;
             color: #2d3748;
         }
+        /* Per Day Table Styles */
+        .perday-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+        .perday-table th {
+            background: #2d3748;
+            color: white;
+            padding: 8px 4px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            border: 1px solid #1a202c;
+        }
+        .perday-table td {
+            padding: 6px 4px;
+            border: 1px solid #cbd5e0;
+            text-align: center;
+        }
+        .perday-table tr:last-child td {
+            background: #e2e8f0;
+            font-weight: bold;
+        }
         hr {
             border: none;
             border-top: 1px solid #e2e8f0;
@@ -101,6 +126,7 @@ const htmlWrapper = (title, content) => {
             .report-container { padding: 8px; }
             .report-header { font-size: 14px; }
             .process-row { font-size: 12px; }
+            .perday-table { font-size: 11px; }
         }
     </style>
     <div class="report-container">
@@ -138,6 +164,109 @@ const formatNumber = (num) => {
 };
 
 // ===============================
+// GET MONTHLY PER DAY MACHINE DATA
+// ===============================
+async function getMonthlyPerDayMachine(selectedMonth, year) {
+  let dailyData = {};
+  
+  // Initialize all STN columns
+  for (let stn in STN_GIDS) {
+    dailyData[stn] = {};
+  }
+  
+  for (let stn in STN_GIDS) {
+    const db = await fetchSheetByGid(STN_GIDS[stn]);
+    if (!db || db.length <= 1) continue;
+    
+    const rows = db.slice(1);
+    
+    rows.forEach(row => {
+      if (!row[0]) return;
+      const d = new Date(row[0]);
+      if (isNaN(d)) return;
+      
+      const rowMonth = months[d.getMonth()];
+      const rowYear = d.getFullYear();
+      
+      if (rowMonth === selectedMonth && rowYear === year) {
+        const day = d.getDate();
+        let dayTotal = 0;
+        
+        // Sum all processes for this STN on this day
+        for (let i = 1; i < row.length; i++) {
+          dayTotal += toYds(parseFloat(row[i]) || 0);
+        }
+        
+        if (!dailyData[stn][day]) dailyData[stn][day] = 0;
+        dailyData[stn][day] += dayTotal;
+      }
+    });
+  }
+  
+  return dailyData;
+}
+
+// ===============================
+// GET MONTHLY PER DAY PROCESS DATA
+// ===============================
+async function getMonthlyPerDayProcess(selectedMonth, year) {
+  let dailyData = {};
+  
+  // Process names mapping
+  const processNames = [
+    "Boro Finish",
+    "Soto Finish",
+    "Digital Finish",
+    "Dry",
+    "Re coating",
+    "Re finish",
+    "Agent"
+  ];
+  
+  // Initialize process columns
+  processNames.forEach(p => {
+    dailyData[p] = {};
+  });
+  
+  for (let stn in STN_GIDS) {
+    const db = await fetchSheetByGid(STN_GIDS[stn]);
+    if (!db || db.length <= 1) continue;
+    
+    const headers = db[0];
+    const rows = db.slice(1);
+    
+    rows.forEach(row => {
+      if (!row[0]) return;
+      const d = new Date(row[0]);
+      if (isNaN(d)) return;
+      
+      const rowMonth = months[d.getMonth()];
+      const rowYear = d.getFullYear();
+      
+      if (rowMonth === selectedMonth && rowYear === year) {
+        const day = d.getDate();
+        
+        // Map each process column
+        headers.forEach((header, idx) => {
+          if (idx === 0) return;
+          
+          // Check if this header matches any process name
+          processNames.forEach(proc => {
+            if (header.toLowerCase().includes(proc.toLowerCase())) {
+              const val = toYds(parseFloat(row[idx]) || 0);
+              if (!dailyData[proc][day]) dailyData[proc][day] = 0;
+              dailyData[proc][day] += val;
+            }
+          });
+        });
+      }
+    });
+  }
+  
+  return dailyData;
+}
+
+// ===============================
 // ASK ROUTE
 // ===============================
 router.post("/ask", async (req, res) => {
@@ -147,9 +276,152 @@ router.post("/ask", async (req, res) => {
   const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
   const now = new Date();
   const currentMonth = months[now.getMonth()];
+  const currentYear = now.getFullYear();
 
   // =====================================================
-  // 1️⃣ MONTH REPORT (HTML VERSION)
+  // PER DAY MACHINE REPORT
+  // =====================================================
+  const perDayMachineMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+machine$/);
+
+  if (perDayMachineMatch) {
+    const selectedMonth = perDayMachineMatch[1];
+    const year = currentYear;
+    
+    const dailyData = await getMonthlyPerDayMachine(selectedMonth, year);
+    
+    // Get all days in month
+    const daysInMonth = new Date(year, months.indexOf(selectedMonth) + 1, 0).getDate();
+    
+    let tableRows = '';
+    let stnTotals = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+    let grandTotal = 0;
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      let row = `<tr><td><b>${day.toString().padStart(2, '0')}</b></td>`;
+      let dayTotal = 0;
+      
+      for (let stn = 1; stn <= 5; stn++) {
+        const val = dailyData[stn.toString()][day] || 0;
+        row += `<td>${formatNumber(val)}</td>`;
+        stnTotals[stn.toString()] += val;
+        dayTotal += val;
+      }
+      
+      row += `<td><b>${formatNumber(dayTotal)}</b></td></tr>`;
+      
+      if (dayTotal > 0) {
+        tableRows += row;
+        grandTotal += dayTotal;
+      }
+    }
+    
+    // Add total row
+    let totalRow = `<tr style="background:#e2e8f0;font-weight:bold"><td><b>TOTAL</b></td>`;
+    for (let stn = 1; stn <= 5; stn++) {
+      totalRow += `<td>${formatNumber(stnTotals[stn.toString()])}</td>`;
+    }
+    totalRow += `<td>${formatNumber(grandTotal)}</td></tr>`;
+    
+    const content = `
+      <table class="perday-table">
+        <tr>
+          <th>Date</th>
+          <th>STN 1</th>
+          <th>STN 2</th>
+          <th>STN 3</th>
+          <th>STN 4</th>
+          <th>STN 5</th>
+          <th>TOTAL</th>
+        </tr>
+        ${tableRows}
+        ${totalRow}
+      </table>
+    `;
+    
+    return res.json({ 
+      reply: htmlWrapper(`${selectedMonth.toUpperCase()} PER DAY MACHINE REPORT`, content) 
+    });
+  }
+
+  // =====================================================
+  // PER DAY PROCESS REPORT
+  // =====================================================
+  const perDayProcessMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+process$/);
+
+  if (perDayProcessMatch) {
+    const selectedMonth = perDayProcessMatch[1];
+    const year = currentYear;
+    
+    const dailyData = await getMonthlyPerDayProcess(selectedMonth, year);
+    
+    const processNames = [
+      "Boro Finish",
+      "Soto Finish",
+      "Digital Finish",
+      "Dry",
+      "Re coating",
+      "Re finish",
+      "Agent"
+    ];
+    
+    const daysInMonth = new Date(year, months.indexOf(selectedMonth) + 1, 0).getDate();
+    
+    let tableRows = '';
+    let processTotals = {};
+    processNames.forEach(p => processTotals[p] = 0);
+    let grandTotal = 0;
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      let row = `<tr><td><b>${day.toString().padStart(2, '0')}</b></td>`;
+      let dayTotal = 0;
+      
+      processNames.forEach(proc => {
+        const val = dailyData[proc][day] || 0;
+        row += `<td>${formatNumber(val)}</td>`;
+        processTotals[proc] += val;
+        dayTotal += val;
+      });
+      
+      row += `<td><b>${formatNumber(dayTotal)}</b></td></tr>`;
+      
+      if (dayTotal > 0) {
+        tableRows += row;
+        grandTotal += dayTotal;
+      }
+    }
+    
+    // Add total row
+    let totalRow = `<tr style="background:#e2e8f0;font-weight:bold"><td><b>TOTAL</b></td>`;
+    processNames.forEach(proc => {
+      totalRow += `<td>${formatNumber(processTotals[proc])}</td>`;
+    });
+    totalRow += `<td>${formatNumber(grandTotal)}</td></tr>`;
+    
+    const content = `
+      <table class="perday-table">
+        <tr>
+          <th>Date</th>
+          <th>Boro Finish</th>
+          <th>Soto Finish</th>
+          <th>Digital Finish</th>
+          <th>Dry</th>
+          <th>Re coating</th>
+          <th>Re finish</th>
+          <th>Agent</th>
+          <th>TOTAL</th>
+        </tr>
+        ${tableRows}
+        ${totalRow}
+      </table>
+    `;
+    
+    return res.json({ 
+      reply: htmlWrapper(`${selectedMonth.toUpperCase()} PER DAY PROCESS REPORT`, content) 
+    });
+  }
+
+  // =====================================================
+  // 1️⃣ MONTH REPORT
   // =====================================================
   const monthOnlyMatch = question.match(/^(total\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/);
 
@@ -243,7 +515,7 @@ router.post("/ask", async (req, res) => {
   }
 
   // =====================================================
-  // 2️⃣ DATE REPORT (HTML VERSION)
+  // 2️⃣ DATE REPORT
   // =====================================================
   const dateMatch = question.match(/^(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/);
 
@@ -342,7 +614,7 @@ router.post("/ask", async (req, res) => {
   }
 
   // =====================================================
-  // 3️⃣ SINGLE STN REPORT (HTML VERSION)
+  // 3️⃣ SINGLE STN REPORT
   // =====================================================
   const stnMatch = question.match(/^stn\s?([1-5])(\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))?$/);
 
@@ -410,7 +682,9 @@ router.post("/ask", async (req, res) => {
         • mar (মাস রিপোর্ট)<br>
         • total mar (মাস রিপোর্ট)<br>
         • 1 mar (তারিখ রিপোর্ট)<br>
-        • stn 3 mar (স্টেশন রিপোর্ট)
+        • stn 3 mar (স্টেশন রিপোর্ট)<br>
+        • mar per day machine (মেশিন পার ডে)<br>
+        • mar per day process (প্রসেস পার ডে)
       </div>
     `)
   });
