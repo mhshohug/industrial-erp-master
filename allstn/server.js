@@ -136,11 +136,18 @@ const htmlWrapper = (title, content) => {
 };
 
 // ===============================
-// METER → YDS CONVERSION
+// METER → YDS CONVERSION (দশমিক বাদ)
 // ===============================
 function toYds(meter){
-  return meter * 1.09361;
+  return Math.round(meter * 1.09361);
 }
+
+// ===============================
+// NUMBER FORMATTER (কমা সহ, দশমিক বাদ)
+// ===============================
+const formatNumber = (num) => {
+  return Math.round(num).toLocaleString();
+};
 
 // ===============================
 // FETCH SHEET FUNCTION
@@ -154,13 +161,6 @@ async function fetchSheetByGid(gid) {
       .map(cell => cell.replace(/^"|"$/g, "").trim())
   );
 }
-
-// ===============================
-// NUMBER FORMATTER
-// ===============================
-const formatNumber = (num) => {
-  return num.toLocaleString(undefined, {maximumFractionDigits: 2});
-};
 
 // ===============================
 // ASK ROUTE
@@ -221,24 +221,24 @@ router.post("/ask", async (req, res) => {
   }
 
   // =====================================================
-  // GET MONTHLY PER DAY PROCESS DATA
+  // GET MONTHLY PER DAY PROCESS DATA (IMPROVED)
   // =====================================================
   async function getMonthlyPerDayProcess(selectedMonth, year) {
     let dailyData = {};
     
-    // Process names mapping
-    const processNames = [
-      "Boro Finish",
-      "Soto Finish",
-      "Digital Finish",
-      "Dry",
-      "Re coating",
-      "Re finish",
-      "Agent"
-    ];
+    // Process names mapping with variations
+    const processMap = {
+      "Boro Finish": ["boro finish", "boro", "bf", "বড় ফিনিশ"],
+      "Soto Finish": ["soto finish", "soto", "sf", "ছোট ফিনিশ"],
+      "Digital Finish": ["digital finish", "digital", "df", "ডিজিটাল"],
+      "Dry": ["dry", "drying", "ড্রাই"],
+      "Re coating": ["re coating", "recoat", "re-coating", "recoating", "রি কোটি"],
+      "Re finish": ["re finish", "refinish", "re-finish", "রি ফিনিশ"],
+      "Agent": ["agent", "ag", "এজেন্ট"]
+    };
     
     // Initialize process columns
-    processNames.forEach(p => {
+    Object.keys(processMap).forEach(p => {
       dailyData[p] = {};
     });
     
@@ -267,12 +267,14 @@ router.post("/ask", async (req, res) => {
           headers.forEach((header, idx) => {
             if (idx === 0) return;
             
-            // Check if this header matches any process name
-            processNames.forEach(proc => {
-              if (header.toLowerCase().includes(proc.toLowerCase())) {
+            const headerLower = header.toLowerCase().trim();
+            
+            // Check which process this header belongs to
+            Object.entries(processMap).forEach(([processName, variations]) => {
+              if (variations.some(v => headerLower.includes(v))) {
                 const val = toYds(parseFloat(row[idx]) || 0);
-                if (!dailyData[proc][day]) dailyData[proc][day] = 0;
-                dailyData[proc][day] += val;
+                if (!dailyData[processName][day]) dailyData[processName][day] = 0;
+                dailyData[processName][day] += val;
               }
             });
           });
@@ -359,7 +361,7 @@ router.post("/ask", async (req, res) => {
   }
 
   // =====================================================
-  // PER DAY PROCESS REPORT
+  // PER DAY PROCESS REPORT (IMPROVED)
   // =====================================================
   const perDayProcessMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+process$/);
 
