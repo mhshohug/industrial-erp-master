@@ -22,7 +22,7 @@ const STN_GIDS = {
 };
 
 // ===============================
-// HTML WRAPPER FUNCTION (আপডেট)
+// HTML WRAPPER FUNCTION
 // ===============================
 const htmlWrapper = (title, content) => {
     return `
@@ -92,7 +92,6 @@ const htmlWrapper = (title, content) => {
             margin-bottom: 5px;
             color: #2d3748;
         }
-        /* Per Day Table Styles */
         .perday-table {
             width: 100%;
             border-collapse: collapse;
@@ -164,109 +163,6 @@ const formatNumber = (num) => {
 };
 
 // ===============================
-// GET MONTHLY PER DAY MACHINE DATA
-// ===============================
-async function getMonthlyPerDayMachine(selectedMonth, year) {
-  let dailyData = {};
-  
-  // Initialize all STN columns
-  for (let stn in STN_GIDS) {
-    dailyData[stn] = {};
-  }
-  
-  for (let stn in STN_GIDS) {
-    const db = await fetchSheetByGid(STN_GIDS[stn]);
-    if (!db || db.length <= 1) continue;
-    
-    const rows = db.slice(1);
-    
-    rows.forEach(row => {
-      if (!row[0]) return;
-      const d = new Date(row[0]);
-      if (isNaN(d)) return;
-      
-      const rowMonth = months[d.getMonth()];
-      const rowYear = d.getFullYear();
-      
-      if (rowMonth === selectedMonth && rowYear === year) {
-        const day = d.getDate();
-        let dayTotal = 0;
-        
-        // Sum all processes for this STN on this day
-        for (let i = 1; i < row.length; i++) {
-          dayTotal += toYds(parseFloat(row[i]) || 0);
-        }
-        
-        if (!dailyData[stn][day]) dailyData[stn][day] = 0;
-        dailyData[stn][day] += dayTotal;
-      }
-    });
-  }
-  
-  return dailyData;
-}
-
-// ===============================
-// GET MONTHLY PER DAY PROCESS DATA
-// ===============================
-async function getMonthlyPerDayProcess(selectedMonth, year) {
-  let dailyData = {};
-  
-  // Process names mapping
-  const processNames = [
-    "Boro Finish",
-    "Soto Finish",
-    "Digital Finish",
-    "Dry",
-    "Re coating",
-    "Re finish",
-    "Agent"
-  ];
-  
-  // Initialize process columns
-  processNames.forEach(p => {
-    dailyData[p] = {};
-  });
-  
-  for (let stn in STN_GIDS) {
-    const db = await fetchSheetByGid(STN_GIDS[stn]);
-    if (!db || db.length <= 1) continue;
-    
-    const headers = db[0];
-    const rows = db.slice(1);
-    
-    rows.forEach(row => {
-      if (!row[0]) return;
-      const d = new Date(row[0]);
-      if (isNaN(d)) return;
-      
-      const rowMonth = months[d.getMonth()];
-      const rowYear = d.getFullYear();
-      
-      if (rowMonth === selectedMonth && rowYear === year) {
-        const day = d.getDate();
-        
-        // Map each process column
-        headers.forEach((header, idx) => {
-          if (idx === 0) return;
-          
-          // Check if this header matches any process name
-          processNames.forEach(proc => {
-            if (header.toLowerCase().includes(proc.toLowerCase())) {
-              const val = toYds(parseFloat(row[idx]) || 0);
-              if (!dailyData[proc][day]) dailyData[proc][day] = 0;
-              dailyData[proc][day] += val;
-            }
-          });
-        });
-      }
-    });
-  }
-  
-  return dailyData;
-}
-
-// ===============================
 // ASK ROUTE
 // ===============================
 router.post("/ask", async (req, res) => {
@@ -279,6 +175,115 @@ router.post("/ask", async (req, res) => {
   const currentYear = now.getFullYear();
 
   // =====================================================
+  // GET MONTHLY PER DAY MACHINE DATA
+  // =====================================================
+  async function getMonthlyPerDayMachine(selectedMonth, year) {
+    let dailyData = {};
+    
+    // Initialize all STN columns
+    for (let stn = 1; stn <= 5; stn++) {
+      dailyData[stn] = {};
+    }
+    
+    for (let stn in STN_GIDS) {
+      const db = await fetchSheetByGid(STN_GIDS[stn]);
+      if (!db || db.length <= 1) continue;
+      
+      const rows = db.slice(1);
+      const monthIndex = months.indexOf(selectedMonth);
+      
+      rows.forEach(row => {
+        if (!row[0]) return;
+        
+        // Parse date
+        const d = new Date(row[0]);
+        if (isNaN(d)) return;
+        
+        const rowMonth = d.getMonth();
+        const rowYear = d.getFullYear();
+        
+        if (rowMonth === monthIndex && rowYear === year) {
+          const day = d.getDate();
+          let dayTotal = 0;
+          
+          // Sum all processes for this STN on this day
+          for (let i = 1; i < row.length; i++) {
+            dayTotal += toYds(parseFloat(row[i]) || 0);
+          }
+          
+          if (!dailyData[stn][day]) dailyData[stn][day] = 0;
+          dailyData[stn][day] += dayTotal;
+        }
+      });
+    }
+    
+    return dailyData;
+  }
+
+  // =====================================================
+  // GET MONTHLY PER DAY PROCESS DATA
+  // =====================================================
+  async function getMonthlyPerDayProcess(selectedMonth, year) {
+    let dailyData = {};
+    
+    // Process names mapping
+    const processNames = [
+      "Boro Finish",
+      "Soto Finish",
+      "Digital Finish",
+      "Dry",
+      "Re coating",
+      "Re finish",
+      "Agent"
+    ];
+    
+    // Initialize process columns
+    processNames.forEach(p => {
+      dailyData[p] = {};
+    });
+    
+    for (let stn in STN_GIDS) {
+      const db = await fetchSheetByGid(STN_GIDS[stn]);
+      if (!db || db.length <= 1) continue;
+      
+      const headers = db[0];
+      const rows = db.slice(1);
+      const monthIndex = months.indexOf(selectedMonth);
+      
+      rows.forEach(row => {
+        if (!row[0]) return;
+        
+        // Parse date
+        const d = new Date(row[0]);
+        if (isNaN(d)) return;
+        
+        const rowMonth = d.getMonth();
+        const rowYear = d.getFullYear();
+        
+        if (rowMonth === monthIndex && rowYear === year) {
+          const day = d.getDate();
+          
+          // Map each process column
+          headers.forEach((header, idx) => {
+            if (idx === 0) return;
+            
+            // Check if this header matches any process name
+            processNames.forEach(proc => {
+              if (header.toLowerCase().includes(proc.toLowerCase())) {
+                const val = toYds(parseFloat(row[idx]) || 0);
+                if (!dailyData[proc][day]) dailyData[proc][day] = 0;
+                dailyData[proc][day] += val;
+              }
+            });
+          });
+        }
+      });
+    }
+    
+    return dailyData;
+  }
+
+  // =====================================================
   // PER DAY MACHINE REPORT
   // =====================================================
   const perDayMachineMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+machine$/);
@@ -289,36 +294,46 @@ router.post("/ask", async (req, res) => {
     
     const dailyData = await getMonthlyPerDayMachine(selectedMonth, year);
     
-    // Get all days in month
-    const daysInMonth = new Date(year, months.indexOf(selectedMonth) + 1, 0).getDate();
+    const monthIndex = months.indexOf(selectedMonth);
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
     
     let tableRows = '';
-    let stnTotals = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+    let stnTotals = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     let grandTotal = 0;
+    let hasData = false;
     
     for (let day = 1; day <= daysInMonth; day++) {
-      let row = `<tr><td><b>${day.toString().padStart(2, '0')}</b></td>`;
       let dayTotal = 0;
+      let dayHasData = false;
+      let row = `<tr><td><b>${day.toString().padStart(2, '0')}</b></td>`;
       
       for (let stn = 1; stn <= 5; stn++) {
-        const val = dailyData[stn.toString()][day] || 0;
+        const val = dailyData[stn] && dailyData[stn][day] ? dailyData[stn][day] : 0;
         row += `<td>${formatNumber(val)}</td>`;
-        stnTotals[stn.toString()] += val;
-        dayTotal += val;
+        if (val > 0) {
+          stnTotals[stn] += val;
+          dayTotal += val;
+          dayHasData = true;
+        }
       }
       
       row += `<td><b>${formatNumber(dayTotal)}</b></td></tr>`;
       
-      if (dayTotal > 0) {
+      if (dayHasData) {
         tableRows += row;
         grandTotal += dayTotal;
+        hasData = true;
       }
+    }
+    
+    if (!hasData) {
+      return res.json({ reply: htmlWrapper("No Data", `❌ ${selectedMonth.toUpperCase()} মাসে কোনো ডাটা নেই`) });
     }
     
     // Add total row
     let totalRow = `<tr style="background:#e2e8f0;font-weight:bold"><td><b>TOTAL</b></td>`;
     for (let stn = 1; stn <= 5; stn++) {
-      totalRow += `<td>${formatNumber(stnTotals[stn.toString()])}</td>`;
+      totalRow += `<td>${formatNumber(stnTotals[stn])}</td>`;
     }
     totalRow += `<td>${formatNumber(grandTotal)}</td></tr>`;
     
@@ -364,30 +379,41 @@ router.post("/ask", async (req, res) => {
       "Agent"
     ];
     
-    const daysInMonth = new Date(year, months.indexOf(selectedMonth) + 1, 0).getDate();
+    const monthIndex = months.indexOf(selectedMonth);
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
     
     let tableRows = '';
     let processTotals = {};
     processNames.forEach(p => processTotals[p] = 0);
     let grandTotal = 0;
+    let hasData = false;
     
     for (let day = 1; day <= daysInMonth; day++) {
-      let row = `<tr><td><b>${day.toString().padStart(2, '0')}</b></td>`;
       let dayTotal = 0;
+      let dayHasData = false;
+      let row = `<tr><td><b>${day.toString().padStart(2, '0')}</b></td>`;
       
       processNames.forEach(proc => {
-        const val = dailyData[proc][day] || 0;
+        const val = dailyData[proc] && dailyData[proc][day] ? dailyData[proc][day] : 0;
         row += `<td>${formatNumber(val)}</td>`;
-        processTotals[proc] += val;
-        dayTotal += val;
+        if (val > 0) {
+          processTotals[proc] += val;
+          dayTotal += val;
+          dayHasData = true;
+        }
       });
       
       row += `<td><b>${formatNumber(dayTotal)}</b></td></tr>`;
       
-      if (dayTotal > 0) {
+      if (dayHasData) {
         tableRows += row;
         grandTotal += dayTotal;
+        hasData = true;
       }
+    }
+    
+    if (!hasData) {
+      return res.json({ reply: htmlWrapper("No Data", `❌ ${selectedMonth.toUpperCase()} মাসে কোনো ডাটা নেই`) });
     }
     
     // Add total row
@@ -428,6 +454,7 @@ router.post("/ask", async (req, res) => {
   if (monthOnlyMatch) {
 
     const selectedMonth = monthOnlyMatch[2];
+    const monthIndex = months.indexOf(selectedMonth);
 
     let machineTotals = {};
     let processTotals = {};
@@ -445,9 +472,12 @@ router.post("/ask", async (req, res) => {
       const headers = db[0];
       const rows = db.slice(1);
 
-      const filteredRows = rows.filter(r =>
-        r[0] && r[0].toLowerCase().includes(selectedMonth)
-      );
+      const filteredRows = rows.filter(r => {
+        if (!r[0]) return false;
+        const d = new Date(r[0]);
+        if (isNaN(d)) return false;
+        return d.getMonth() === monthIndex;
+      });
 
       if (!filteredRows.length) continue;
 
@@ -523,6 +553,7 @@ router.post("/ask", async (req, res) => {
 
     const day = parseInt(dateMatch[1]);
     const month = dateMatch[2];
+    const monthIndex = months.indexOf(month);
 
     let processSummary = {};
     let processGrandTotal = 0;
@@ -541,7 +572,7 @@ router.post("/ask", async (req, res) => {
         if(!r[0]) return false;
         const d=new Date(r[0]);
         if(isNaN(d)) return false;
-        return d.getDate()===day && months[d.getMonth()]===month;
+        return d.getDate()===day && d.getMonth()===monthIndex;
       });
 
       if(!filteredRows.length) continue;
@@ -622,6 +653,7 @@ router.post("/ask", async (req, res) => {
 
     const stnNumber = stnMatch[1];
     const selectedMonth = stnMatch[3] || currentMonth;
+    const monthIndex = months.indexOf(selectedMonth);
 
     const db = await fetchSheetByGid(STN_GIDS[stnNumber]);
     if (!db || db.length <= 1)
@@ -630,9 +662,12 @@ router.post("/ask", async (req, res) => {
     const headers = db[0];
     const rows = db.slice(1);
 
-    const filteredRows = rows.filter(r =>
-      r[0] && r[0].toLowerCase().includes(selectedMonth)
-    );
+    const filteredRows = rows.filter(r => {
+      if (!r[0]) return false;
+      const d = new Date(r[0]);
+      if (isNaN(d)) return false;
+      return d.getMonth() === monthIndex;
+    });
 
     if(!filteredRows.length)
       return res.json({ reply: htmlWrapper("Error", "❌ ঐ মাসে ডেটা নেই") });
@@ -675,6 +710,9 @@ router.post("/ask", async (req, res) => {
     });
   }
 
+  // =====================================================
+  // HELP / DEFAULT
+  // =====================================================
   return res.json({
     reply: htmlWrapper("Commands", `
       <div style="padding:10px">
