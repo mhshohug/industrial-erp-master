@@ -221,17 +221,18 @@ router.post("/ask", async (req, res) => {
   }
 
   // =====================================================
-  // GET MONTHLY PER DAY PROCESS DATA (IMPROVED)
+  // GET MONTHLY PER DAY PROCESS DATA (UPDATED)
   // =====================================================
   async function getMonthlyPerDayProcess(selectedMonth, year) {
     let dailyData = {};
     
-    // Process names mapping with variations
+    // Process names mapping with variations (UPDATED)
     const processMap = {
       "Boro Finish": ["boro finish", "boro", "bf", "বড় ফিনিশ"],
       "Soto Finish": ["soto finish", "soto", "sf", "ছোট ফিনিশ"],
       "Digital Finish": ["digital finish", "digital", "df", "ডিজিটাল"],
       "Dry": ["dry", "drying", "ড্রাই"],
+      "Coating": ["coating", "কোটিং"],
       "Re coating": ["re coating", "recoat", "re-coating", "recoating", "রি কোটি"],
       "Re finish": ["re finish", "refinish", "re-finish", "রি ফিনিশ"],
       "Agent": ["agent", "ag", "এজেন্ট"]
@@ -361,7 +362,7 @@ router.post("/ask", async (req, res) => {
   }
 
   // =====================================================
-  // PER DAY PROCESS REPORT (IMPROVED)
+  // PER DAY PROCESS REPORT (UPDATED)
   // =====================================================
   const perDayProcessMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+process$/);
 
@@ -376,6 +377,7 @@ router.post("/ask", async (req, res) => {
       "Soto Finish",
       "Digital Finish",
       "Dry",
+      "Coating",
       "Re coating",
       "Re finish",
       "Agent"
@@ -433,6 +435,7 @@ router.post("/ask", async (req, res) => {
           <th>Soto Finish</th>
           <th>Digital Finish</th>
           <th>Dry</th>
+          <th>Coating</th>
           <th>Re coating</th>
           <th>Re finish</th>
           <th>Agent</th>
