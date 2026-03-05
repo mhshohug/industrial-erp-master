@@ -35,6 +35,7 @@ header{
   font-size:12px;
   font-weight:600;
   cursor:pointer;
+  color:white;
 }
 #chat{
   flex:1;
@@ -82,6 +83,7 @@ button{
   padding:0 18px;
   border-radius:25px;
   font-weight:600;
+  cursor:pointer;
 }
 #suggest{
   display:flex;
@@ -96,6 +98,9 @@ button{
   font-size:13px;
   cursor:pointer;
   white-space:nowrap;
+}
+.sug:hover{
+  background:#334155;
 }
 
 #dropdown{
@@ -118,6 +123,30 @@ button{
 }
 .drop-item:last-child{border-bottom:none}
 .drop-item:hover{background:#334155}
+
+/* রিপোর্ট স্টাইল */
+.report-table{
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+  color:black;
+  border-radius:8px;
+  overflow:hidden;
+  margin:5px 0;
+}
+.report-table th{
+  background:#2d3748;
+  color:white;
+  padding:6px;
+  font-size:12px;
+}
+.report-table td{
+  padding:5px;
+  border:1px solid #cbd5e0;
+  font-size:11px;
+}
+.positive{color:#059669; font-weight:bold;}
+.negative{color:#dc2626; font-weight:bold;}
 </style>
 </head>
 
@@ -138,134 +167,361 @@ button{
 </div>
 
 <script>
-const chat=document.getElementById("chat");
-const suggest=document.getElementById("suggest");
-const dropdown=document.getElementById("dropdown");
-const input=document.getElementById("q");
+const chat = document.getElementById("chat");
+const suggest = document.getElementById("suggest");
+const dropdown = document.getElementById("dropdown");
+const input = document.getElementById("q");
 
-let lastQuery="";
+let lastQuery = "";
 
-const quick=["sill 590","3 feb cpb","total dyeing","party RB design"];
-const commands=[
-"sill 590","3 feb cpb","total dyeing",
-"party RB design","today",
-"cpb per day","jigger per day",
-"feb rolling inspection"
+// ========== ডাইনামিক মাস ডিটেকশন ==========
+const today = new Date();
+const months = [
+  { name: 'jan', full: 'January' },
+  { name: 'feb', full: 'February' },
+  { name: 'mar', full: 'March' },
+  { name: 'apr', full: 'April' },
+  { name: 'may', full: 'May' },
+  { name: 'jun', full: 'June' },
+  { name: 'jul', full: 'July' },
+  { name: 'aug', full: 'August' },
+  { name: 'sep', full: 'September' },
+  { name: 'oct', full: 'October' },
+  { name: 'nov', full: 'November' },
+  { name: 'dec', full: 'December' }
 ];
 
-quick.forEach(t=>{
-  const d=document.createElement("div");
-  d.className="sug";
-  d.innerText=t;
-  d.onclick=()=>{input.value=t;send();};
-  suggest.appendChild(d);
-});
+const currentMonth = months[today.getMonth()].name;
+const prevMonth = today.getMonth() > 0 ? months[today.getMonth() - 1].name : null;
+const currentDate = today.getDate();
+const yesterday = new Date(today);
+yesterday.setDate(today.getDate() - 1);
+const yesterdayDate = yesterday.getDate();
 
-input.addEventListener("input",function(){
-  const val=this.value.toLowerCase();
-  dropdown.innerHTML="";
-  if(!val){dropdown.style.display="none";return;}
+// ========== ডাইনামিক কুইক বাটন ==========
+function updateQuickButtons() {
+  suggest.innerHTML = '';
+  
+  const quickButtons = [
+    `sill 590`,
+    `${currentDate} ${currentMonth} cpb`,
+    `total dyeing`,
+    `party RB design`,
+    `today`,
+    `yesterday`,
+    `${currentMonth} per day dyeing`
+  ];
+  
+  quickButtons.forEach(text => {
+    const btn = document.createElement("div");
+    btn.className = "sug";
+    btn.innerText = text;
+    btn.onclick = () => {
+      input.value = text;
+      send();
+    };
+    suggest.appendChild(btn);
+  });
+}
 
-  const match=commands.filter(c=>c.includes(val));
-  if(match.length===0){dropdown.style.display="none";return;}
+// ========== ডাইনামিক কমান্ড জেনারেটর ==========
+function generateCommands() {
+  const baseCommands = [
+    // জেনারেল
+    "help",
+    "totall",
+    "total dyeing",
+    "today",
+    "yesterday",
+    
+    // সিল সার্চ
+    "sill 590",
+    "sill 1234",
+    "590 cpb",
+    "590 jigger",
+    "590 jet",
+    "590 singing",
+    "590 rolling",
+    
+    // লট সার্চ
+    "lot 12345",
+    "12345",
+    
+    // পার্টি সার্চ
+    "party RB design",
+    "party আলিফ",
+    "party নাসির",
+    
+    // ডেইলি রিপোর্ট (চলতি মাস)
+    `${currentDate} ${currentMonth} cpb`,
+    `${currentDate} ${currentMonth} jigger`,
+    `${currentDate} ${currentMonth} jet`,
+    `${currentDate} ${currentMonth} singing`,
+    `${currentDate} ${currentMonth} rolling`,
+    
+    // গতকালের রিপোর্ট
+    `${yesterdayDate} ${currentMonth} cpb`,
+    `${yesterdayDate} ${currentMonth} jigger`,
+    
+    // র‍্যান্ডম ডেট উদাহরণ
+    `15 ${currentMonth} cpb`,
+    `20 ${currentMonth} jigger`,
+    `5 ${currentMonth} jet`,
+  ];
 
-  match.forEach(m=>{
-    const d=document.createElement("div");
-    d.className="drop-item";
-    d.innerText=m;
-    d.onclick=function(){
-      input.value=m;
-      dropdown.style.display="none";
+  // চলতি মাসের কমান্ড
+  baseCommands.push(
+    `${currentMonth} dyeing`,
+    `${currentMonth} per day dyeing`,
+    `${currentMonth} rolling inspection`,
+    `${currentMonth} cpb per day`,
+    `${currentMonth} jigger per day`,
+    `${currentMonth} jet per day`,
+    `${currentMonth} singing per day`
+  );
+
+  // আগের মাসের কমান্ড (যদি জানুয়ারি না হয়)
+  if (prevMonth) {
+    baseCommands.push(
+      `${prevMonth} dyeing`,
+      `${prevMonth} per day dyeing`,
+      `${prevMonth} rolling inspection`,
+      `${prevMonth} cpb per day`
+    );
+  }
+
+  // পার ডে রিপোর্ট (চলতি মাস)
+  baseCommands.push(
+    "cpb per day",
+    "jigger per day",
+    "jet per day",
+    "singing per day",
+    "rolling per day"
+  );
+
+  return [...new Set(baseCommands)]; // ডুপ্লিকেট রিমুভ
+}
+
+// ========== ড্রপডাউন সাজেশন ==========
+input.addEventListener("input", function() {
+  const val = this.value.toLowerCase();
+  dropdown.innerHTML = "";
+  
+  if (!val) {
+    dropdown.style.display = "none";
+    return;
+  }
+
+  const commands = generateCommands();
+  
+  const matches = commands.filter(c => 
+    c.toLowerCase().includes(val)
+  ).slice(0, 10); // ম্যাক্স ১০ টা
+  
+  if (matches.length === 0) {
+    dropdown.style.display = "none";
+    return;
+  }
+
+  matches.forEach(m => {
+    const d = document.createElement("div");
+    d.className = "drop-item";
+    d.innerText = m;
+    d.onclick = function() {
+      input.value = m;
+      dropdown.style.display = "none";
       input.focus();
     };
     dropdown.appendChild(d);
   });
 
-  dropdown.style.display="block";
+  dropdown.style.display = "block";
 });
 
-function add(text,type){
-  const div=document.createElement("div");
-  div.className="msg "+type;
+// ========== ডকুমেন্টে ক্লিক করলে ড্রপডাউন বন্ধ ==========
+document.addEventListener("click", function(e) {
+  if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+    dropdown.style.display = "none";
+  }
+});
 
-  if(type==="bot"){
-    div.innerHTML=text;   // 🔥 HTML render
-  }else{
-    div.innerText=text;
+// ========== মেসেজ অ্যাড ==========
+function add(text, type) {
+  const div = document.createElement("div");
+  div.className = "msg " + type;
+
+  if (type === "bot") {
+    div.innerHTML = text;
+  } else {
+    div.innerText = text;
   }
 
   chat.appendChild(div);
-  chat.scrollTop=chat.scrollHeight;
+  chat.scrollTop = chat.scrollHeight;
 }
 
-async function send(){
-  const text=input.value.trim();
-  if(!text) return;
+// ========== সেন্ড ফাংশন ==========
+async function send() {
+  const text = input.value.trim();
+  if (!text) return;
 
-  lastQuery=text;
-  dropdown.style.display="none";
+  lastQuery = text;
+  dropdown.style.display = "none";
 
-  add(text,"user");
-  input.value="";
-  add("Loading...","bot");
-  const loading=chat.lastChild;
+  add(text, "user");
+  input.value = "";
+  add("⏳ Loading...", "bot");
+  const loading = chat.lastChild;
 
-  try{
-    const r=await fetch("/factory/api/ask",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({question:text})
+  try {
+    const res = await fetch("/factory/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: text })
     });
 
-    const j=await r.json();
-    loading.innerHTML=j.reply||"No reply";
+    const json = await res.json();
+    
+    // হেল্প কমান্ডের জন্য স্পেশাল হ্যান্ডলিং
+    if (text.toLowerCase() === "help") {
+      loading.innerHTML = generateHelpHTML();
+    } else {
+      loading.innerHTML = json.reply || "❌ No reply";
+    }
 
-  }catch{
-    loading.innerHTML="Server error";
+  } catch (error) {
+    loading.innerHTML = "⚠️ Server error: " + error.message;
   }
 }
 
-function printChat(){
-  const bots=document.querySelectorAll(".bot");
-  if(bots.length===0) return;
+// ========== হেল্প HTML ==========
+function generateHelpHTML() {
+  const cm = currentMonth.toUpperCase();
+  const pm = prevMonth ? prevMonth.toUpperCase() : '';
+  
+  return `
+  <div style="background:white;color:black;padding:12px;border-radius:8px;">
+    <h3 style="margin:0 0 10px 0;color:#22c55e;">📚 AVAILABLE COMMANDS</h3>
+    
+    <div style="margin-bottom:10px;">
+      <b style="color:#2d3748;">🏭 GENERAL</b><br>
+      • help - এই তালিকা<br>
+      • totall - সর্বকালের টোটাল<br>
+      • total dyeing - চলতি মাসের ডাইং<br>
+      • today - আজকের প্রোডাকশন<br>
+      • yesterday - গতকালের প্রোডাকশন
+    </div>
+    
+    <div style="margin-bottom:10px;">
+      <b style="color:#2d3748;">🔍 SILL SEARCH</b><br>
+      • sill 590 - সিল রিপোর্ট<br>
+      • 590 cpb - সিলের CPB হিস্ট্রি
+    </div>
+    
+    <div style="margin-bottom:10px;">
+      <b style="color:#2d3748;">📅 DATE + SECTION</b><br>
+      • ${currentDate} ${currentMonth} cpb - আজকের CPB<br>
+      • 15 ${currentMonth} jigger - যেকোনো তারিখ<br>
+      • ${yesterdayDate} ${currentMonth} jet - গতকালের Jet
+    </div>
+    
+    <div style="margin-bottom:10px;">
+      <b style="color:#2d3748;">📊 PER DAY REPORTS</b><br>
+      • ${currentMonth} cpb per day - মাসের ডেইলি CPB<br>
+      • cpb per day - চলতি মাসের ডেইলি<br>
+      • ${currentMonth} per day dyeing - ডেইলি ডাইং টেবিল
+    </div>
+    
+    <div style="margin-bottom:10px;">
+      <b style="color:#2d3748;">📈 MONTHLY</b><br>
+      • ${currentMonth} dyeing - এই মাসের ডাইং<br>
+      ${prevMonth ? `• ${prevMonth} dyeing - গত মাসের ডাইং` : ''}<br>
+      • ${currentMonth} rolling inspection - রোলিং রিপোর্ট
+    </div>
+    
+    <div>
+      <b style="color:#2d3748;">🏢 PARTY</b><br>
+      • party RB Design - পার্টির লট সমূহ
+    </div>
+  </div>
+  `;
+}
 
-  const lastReport=bots[bots.length-1].innerHTML;
-  const dateTime=new Date().toLocaleString();
+// ========== প্রিন্ট ফাংশন ==========
+function printChat() {
+  const bots = document.querySelectorAll(".bot");
+  if (bots.length === 0) return;
 
-  const win=window.open("","","width=900,height=700");
+  const lastReport = bots[bots.length - 1].innerHTML;
+  const dateTime = new Date().toLocaleString('bn-BD', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const win = window.open("", "", "width=900,height=700");
   win.document.write(`
   <html>
   <head>
-  <style>
-  @page { size:A4 portrait; margin:20mm; }
-  body{font-family:Arial;padding:30px;}
-  .company{text-align:center;font-size:28px;font-weight:bold;}
-  .address{text-align:center;font-size:14px;margin-top:4px;}
-  .erp{text-align:center;font-size:16px;font-weight:bold;margin-top:6px;}
-  .line{height:2px;background:#000;width:70%;margin:12px auto;}
-  .title{text-align:center;font-size:20px;font-weight:bold;margin:10px 0;}
-  table{width:100%;border-collapse:collapse;}
-  th,td{border:1px solid #000;padding:6px;text-align:center;}
-  </style>
+    <title>60" Fabric ERP Report</title>
+    <style>
+      @page { size: A4 portrait; margin: 15mm; }
+      body { font-family: Arial; padding: 20px; }
+      .company { text-align: center; font-size: 28px; font-weight: bold; color: #1a202c; }
+      .address { text-align: center; font-size: 14px; margin-top: 4px; color: #4a5568; }
+      .erp { text-align: center; font-size: 16px; font-weight: bold; margin-top: 6px; color: #22c55e; }
+      .line { height: 2px; background: #000; width: 70%; margin: 12px auto; }
+      .title { text-align: center; font-size: 20px; font-weight: bold; margin: 15px 0; }
+      .meta { background: #f7fafc; padding: 10px; border-radius: 5px; margin: 10px 0; }
+      table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+      th, td { border: 1px solid #000; padding: 8px; text-align: center; }
+      th { background: #e2e8f0; }
+      .footer { margin-top: 30px; display: flex; justify-content: space-between; }
+    </style>
   </head>
   <body>
+    <div class="company">Sukhy Dyeing & Finishing Mills Ltd.</div>
+    <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
+    <div class="erp">60" Fabric ERP System</div>
+    <div class="line"></div>
 
-  <div class="company">Sukhy Dyeing & Finishing Mills Ltd.</div>
-  <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
-  <div class="erp">Sukhy ERP</div>
-  <div class="line"></div>
+    <div class="title">Production Report</div>
+    
+    <div class="meta">
+      <b>📋 Query:</b> ${lastQuery}<br>
+      <b>🕐 Generated:</b> ${dateTime}
+    </div>
 
-  <div class="title">60" Fabric Dyeing Report</div>
-  <div><b>Query:</b> ${lastQuery}<br><b>Generated:</b> ${dateTime}</div>
-  <hr>
-  ${lastReport}
+    <hr style="margin: 20px 0;">
 
+    ${lastReport}
+
+    <div class="footer">
+      <div><b>Prepared By:</b> Mehedi Hasan</div>
+      <div><b>Developed By:</b> Mehedi Hasan</div>
+      <div><b>Signature:</b> ________________</div>
+    </div>
   </body>
   </html>
   `);
   win.document.close();
   win.print();
 }
+
+// ========== ইনিশিয়ালাইজ ==========
+updateQuickButtons();
+
+// ========== এন্টার চাপলে সেন্ড ==========
+input.addEventListener("keypress", function(e) {
+  if (e.key === "Enter") send();
+});
+
+// ========== উইন্ডো রিসাইজ ==========
+window.addEventListener('resize', function() {
+  chat.scrollTop = chat.scrollHeight;
+});
 </script>
 
 </body>
