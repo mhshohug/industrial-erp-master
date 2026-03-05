@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>60" Fabric ERP</title>
+<title>60" Fabric ERP with DeepSeek AI</title>
 
 <style>
 body{
@@ -50,6 +50,11 @@ header{
   padding:10px 14px;
   border-radius:14px;
   line-height:1.4;
+  animation: fadeIn 0.3s;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .user{
   background:#2563eb;
@@ -67,6 +72,7 @@ header{
   padding:10px;
   display:flex;
   gap:8px;
+  align-items:center;
 }
 #q{
   flex:1;
@@ -84,7 +90,36 @@ button{
   border-radius:25px;
   font-weight:600;
   cursor:pointer;
+  height:45px;
+  min-width:70px;
 }
+.voice-btn{
+  background:#4f46e5;
+  border:none;
+  color:white;
+  width:45px;
+  height:45px;
+  border-radius:50%;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  transition:all 0.3s;
+}
+.voice-btn.listening{
+  background:#ef4444;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.voice-btn:hover{
+  background:#6366f1;
+}
+
 #suggest{
   display:flex;
   gap:6px;
@@ -98,6 +133,7 @@ button{
   font-size:13px;
   cursor:pointer;
   white-space:nowrap;
+  transition:background 0.2s;
 }
 .sug:hover{
   background:#334155;
@@ -147,23 +183,99 @@ button{
 }
 .positive{color:#059669; font-weight:bold;}
 .negative{color:#dc2626; font-weight:bold;}
+
+/* ভয়েস ইন্ডিকেটর */
+.voice-indicator{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#1e293b;
+  padding:20px;
+  border-radius:20px;
+  box-shadow:0 20px 40px rgba(0,0,0,.5);
+  text-align:center;
+  z-index:1000;
+  display:none;
+}
+.voice-indicator.active{
+  display:block;
+  animation: popIn 0.3s;
+}
+@keyframes popIn {
+  from { transform: translate(-50%,-50%) scale(0.8); opacity:0; }
+  to { transform: translate(-50%,-50%) scale(1); opacity:1; }
+}
+.voice-wave{
+  display:flex;
+  gap:5px;
+  justify-content:center;
+  margin:15px 0;
+}
+.voice-wave span{
+  width:8px;
+  height:30px;
+  background:#22c55e;
+  border-radius:4px;
+  animation: wave 1s infinite;
+}
+.voice-wave span:nth-child(2){ animation-delay:0.1s; height:40px; }
+.voice-wave span:nth-child(3){ animation-delay:0.2s; height:35px; }
+.voice-wave span:nth-child(4){ animation-delay:0.3s; height:25px; }
+.voice-wave span:nth-child(5){ animation-delay:0.4s; height:45px; }
+@keyframes wave {
+  0%,100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.5); }
+}
+
+/* AI ব্যাজ */
+.ai-badge{
+  background:#22c55e;
+  color:white;
+  font-size:12px;
+  padding:2px 8px;
+  border-radius:12px;
+  margin-left:10px;
+  display:inline-block;
+}
 </style>
 </head>
 
 <body>
 
 <header>
-60" Fabric ERP
+60" Fabric ERP with DeepSeek AI <span class="ai-badge">AI</span>
 <button id="printBtn" onclick="printChat()">Print</button>
 </header>
 
-<div id="chat"></div>
+<div id="chat">
+  <div class="msg bot">
+    👋 ওস্তাদ, আমি DeepSeek AI চালিত ERP assistant। আপনি বাংলা-ইংরেজি মিক্সড ভাষায় প্রশ্ন করতে পারেন:<br><br>
+    🗣️ <b>"৫৯০ সিল দেখুন"</b><br>
+    🗣️ <b>"১৫ মার্চ সিপিবি কত?"</b><br>
+    🗣️ <b>"মার্চ মাসের ডাইং টোটাল"</b><br>
+    🗣️ <b>"আরবি ডিজাইনের লট গুলো দেখুন"</b><br><br>
+    নিচের <b>🎤 বাটন</b> চাপুন আর কথা বলুন!
+  </div>
+</div>
+
 <div id="suggest"></div>
 <div id="dropdown"></div>
 
 <div id="inputArea">
-<input id="q" placeholder="প্রশ্ন লিখুন... যেমন: sill 590" />
-<button onclick="send()">Send</button>
+  <input id="q" placeholder="টাইপ করুন অথবা 🎤 বাটন চাপুন..." />
+  <button onclick="send()">Send</button>
+  <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()">🎤</button>
+</div>
+
+<!-- ভয়েস ইন্ডিকেটর -->
+<div class="voice-indicator" id="voiceIndicator">
+  <div style="font-size:24px; margin-bottom:10px;">🎤 শুনছি...</div>
+  <div class="voice-wave">
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <div id="voiceText" style="color:#94a3b8;">বলুন...</div>
+  <div style="margin-top:15px; font-size:12px; color:#64748b;">আবার চাপুন বন্ধ করতে</div>
 </div>
 
 <script>
@@ -171,8 +283,100 @@ const chat = document.getElementById("chat");
 const suggest = document.getElementById("suggest");
 const dropdown = document.getElementById("dropdown");
 const input = document.getElementById("q");
+const voiceBtn = document.getElementById("voiceBtn");
+const voiceIndicator = document.getElementById("voiceIndicator");
+const voiceText = document.getElementById("voiceText");
 
 let lastQuery = "";
+let recognition = null;
+let isListening = false;
+
+// ========== ভয়েস রিকগনিশন সেটআপ ==========
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  
+  // বাংলা এবং ইংরেজি উভয় ভাষা সাপোর্ট
+  recognition.lang = 'bn-BD';  // বাংলা
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 3;
+
+  recognition.onstart = function() {
+    isListening = true;
+    voiceBtn.classList.add('listening');
+    voiceIndicator.classList.add('active');
+    voiceText.innerText = "বলুন...";
+  };
+
+  recognition.onend = function() {
+    isListening = false;
+    voiceBtn.classList.remove('listening');
+    voiceIndicator.classList.remove('active');
+  };
+
+  recognition.onerror = function(event) {
+    console.error('Speech error:', event.error);
+    isListening = false;
+    voiceBtn.classList.remove('listening');
+    voiceIndicator.classList.remove('active');
+    
+    if (event.error === 'no-speech') {
+      alert('⏰ কিছু বলা হয়নি। আবার চেষ্টা করুন।');
+    } else {
+      alert('❌ ভয়েস সমস্যা: ' + event.error);
+    }
+  };
+
+  recognition.onresult = function(event) {
+    let finalTranscript = '';
+    let interimTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript;
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+
+    // ইন্টেরিম রেজাল্ট দেখাই
+    if (interimTranscript) {
+      voiceText.innerText = interimTranscript + '...';
+    }
+
+    // ফাইনাল রেজাল্ট
+    if (finalTranscript) {
+      voiceText.innerText = finalTranscript;
+      input.value = finalTranscript;
+      
+      // একটু delay দিয়ে send করি
+      setTimeout(() => {
+        toggleVoice(); // মাইক্রোফোন বন্ধ করি
+        send(); // মেসেজ পাঠাই
+      }, 1000);
+    }
+  };
+} else {
+  // ব্রাউজার সাপোর্ট না করলে
+  voiceBtn.style.display = 'none';
+  console.warn('ভয়েস রিকগনিশন এই ব্রাউজারে সাপোর্ট করে না।');
+}
+
+// ========== ভয়েস টগল ==========
+function toggleVoice() {
+  if (!recognition) {
+    alert('❌ আপনার ব্রাউজার ভয়েস সাপোর্ট করে না। ক্রোম ব্যবহার করুন।');
+    return;
+  }
+
+  if (isListening) {
+    recognition.stop();
+  } else {
+    recognition.start();
+  }
+}
 
 // ========== ডাইনামিক মাস ডিটেকশন ==========
 const today = new Date();
@@ -370,7 +574,7 @@ async function send() {
 
   add(text, "user");
   input.value = "";
-  add("⏳ Loading...", "bot");
+  add("🤖 DeepSeek AI বিশ্লেষণ করছে...", "bot");
   const loading = chat.lastChild;
 
   try {
@@ -479,19 +683,21 @@ function printChat() {
       th, td { border: 1px solid #000; padding: 8px; text-align: center; }
       th { background: #e2e8f0; }
       .footer { margin-top: 30px; display: flex; justify-content: space-between; }
+      .ai-badge { background: #22c55e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; display: inline-block; }
     </style>
   </head>
   <body>
     <div class="company">Sukhy Dyeing & Finishing Mills Ltd.</div>
     <div class="address">Kurerpar, Shekherchor, Narsingdi.</div>
-    <div class="erp">60" Fabric ERP System</div>
+    <div class="erp">60" Fabric ERP System with DeepSeek AI <span class="ai-badge">AI</span></div>
     <div class="line"></div>
 
     <div class="title">Production Report</div>
     
     <div class="meta">
       <b>📋 Query:</b> ${lastQuery}<br>
-      <b>🕐 Generated:</b> ${dateTime}
+      <b>🕐 Generated:</b> ${dateTime}<br>
+      <b>🤖 AI Processing:</b> DeepSeek AI
     </div>
 
     <hr style="margin: 20px 0;">
@@ -516,6 +722,14 @@ updateQuickButtons();
 // ========== এন্টার চাপলে সেন্ড ==========
 input.addEventListener("keypress", function(e) {
   if (e.key === "Enter") send();
+});
+
+// ========== Ctrl+Space দিয়ে ভয়েস টগল ==========
+document.addEventListener("keydown", function(e) {
+  if (e.ctrlKey && e.code === "Space") {
+    e.preventDefault();
+    toggleVoice();
+  }
 });
 
 // ========== উইন্ডো রিসাইজ ==========
