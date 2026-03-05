@@ -231,7 +231,7 @@ header{
   background: #1e293b;
   border: 1px solid #334155;
   border-radius: 12px 12px 0 0;
-  max-height: 250px;
+  max-height: 300px;
   overflow-y: auto;
   display: none;
   z-index: 2000;
@@ -421,51 +421,95 @@ var chat = document.getElementById("chat");
 var input = document.getElementById("q");
 var suggestionsDiv = document.getElementById("suggestions");
 
-// ========== কমান্ড ডাটাবেস ==========
-const commandsDB = [
-  // জেনারেল
-  { cmd: "help", desc: "সকল কমান্ডের তালিকা", category: "general" },
-  { cmd: "totall", desc: "পুরো ফ্যাক্টরির সামারি", category: "general" },
-  { cmd: "today", desc: "আজকের প্রোডাকশন", category: "general" },
-  { cmd: "total dyeing", desc: "মোট ডাইং কোয়ান্টিটি", category: "general" },
-  
-  // পার ডে
-  { cmd: "cpb per day", desc: "CPB এর ডেইলি প্রোডাকশন", category: "daily" },
-  { cmd: "jigger per day", desc: "Jigger এর ডেইলি প্রোডাকশন", category: "daily" },
-  { cmd: "napthol per day", desc: "Napthol এর ডেইলি প্রোডাকশন", category: "daily" },
-  { cmd: "singing per day", desc: "Singing এর ডেইলি প্রোডাকশন", category: "daily" },
-  { cmd: "marcerise per day", desc: "Marcerise এর ডেইলি প্রোডাকশন", category: "daily" },
-  { cmd: "bleach per day", desc: "Bleach এর ডেইলি প্রোডাকশন", category: "daily" },
-  { cmd: "folding per day", desc: "Folding এর ডেইলি প্রোডাকশন", category: "daily" },
-  
-  // তারিখ + প্রসেস
-  { cmd: "15 feb cpb", desc: "১৫ ফেব্রুয়ারি CPB", category: "date" },
-  { cmd: "today jigger", desc: "আজ Jigger", category: "date" },
-  { cmd: "yesterday singing", desc: "গতকাল Singing", category: "date" },
-  
-  // মাসওয়ারি
-  { cmd: "jan summary", desc: "জানুয়ারি পূর্ণ রিপোর্ট", category: "monthly" },
-  { cmd: "feb dyeing", desc: "ফেব্রুয়ারি ডাইং", category: "monthly" },
-  { cmd: "mar process", desc: "মার্চ প্রসেস", category: "monthly" },
-  { cmd: "apr folding", desc: "এপ্রিল ফোল্ডিং", category: "monthly" },
-  
-  // পার ডে ডাইং
-  { cmd: "jan per day dyeing", desc: "জানুয়ারি ডেইলি ডাইং", category: "monthly" },
-  { cmd: "feb per day dyeing", desc: "ফেব্রুয়ারি ডেইলি ডাইং", category: "monthly" },
-  
-  // পার্টি
-  { cmd: "মেসার্স আলিফ", desc: "আলিফের সকল সিল", category: "party" },
-  { cmd: "আলিফ cpb", desc: "আলিফের CPB", category: "party" },
-  { cmd: "নাসির jigger", desc: "নাসিরের Jigger", category: "party" },
-  
-  // সিল/লট
-  { cmd: "15267", desc: "সিল নম্বর ১৫২৬৭", category: "sill" },
-  { cmd: "590", desc: "সিল নম্বর ৫৯০", category: "sill" }
+// ========== ডাইনামিক মাস ও তারিখ ==========
+const months = [
+  { name: 'jan', full: 'January' },
+  { name: 'feb', full: 'February' },
+  { name: 'mar', full: 'March' },
+  { name: 'apr', full: 'April' },
+  { name: 'may', full: 'May' },
+  { name: 'jun', full: 'June' },
+  { name: 'jul', full: 'July' },
+  { name: 'aug', full: 'August' },
+  { name: 'sep', full: 'September' },
+  { name: 'oct', full: 'October' },
+  { name: 'nov', full: 'November' },
+  { name: 'dec', full: 'December' }
 ];
 
-// অটো সাজেস্ট ফাংশন
+const today = new Date();
+const currentMonth = months[today.getMonth()].name;
+const currentDate = today.getDate();
+const yesterday = new Date(today);
+yesterday.setDate(today.getDate() - 1);
+const yesterdayDate = yesterday.getDate();
+
+// ========== ডাইনামিক কমান্ড ডাটাবেস ==========
+function getDynamicCommands() {
+  const commands = [
+    // জেনারেল (স্ট্যাটিক)
+    { cmd: "help", desc: "সকল কমান্ডের তালিকা", category: "general" },
+    { cmd: "totall", desc: "পুরো ফ্যাক্টরির সামারি", category: "general" },
+    { cmd: "today", desc: "আজকের প্রোডাকশন", category: "general" },
+    { cmd: "yesterday", desc: "গতকালের প্রোডাকশন", category: "general" },
+    { cmd: "total dyeing", desc: "মোট ডাইং কোয়ান্টিটি", category: "general" },
+    
+    // পার ডে (স্ট্যাটিক)
+    { cmd: "cpb per day", desc: "CPB এর ডেইলি প্রোডাকশন", category: "daily" },
+    { cmd: "jigger per day", desc: "Jigger এর ডেইলি প্রোডাকশন", category: "daily" },
+    { cmd: "napthol per day", desc: "Napthol এর ডেইলি প্রোডাকশন", category: "daily" },
+    { cmd: "singing per day", desc: "Singing এর ডেইলি প্রোডাকশন", category: "daily" },
+    { cmd: "marcerise per day", desc: "Marcerise এর ডেইলি প্রোডাকশন", category: "daily" },
+    { cmd: "bleach per day", desc: "Bleach এর ডেইলি প্রোডাকশন", category: "daily" },
+    { cmd: "folding per day", desc: "Folding এর ডেইলি প্রোডাকশন", category: "daily" },
+    
+    // মাসওয়ারি (ডাইনামিক - শুধু আগের মাস + চলতি মাস)
+    { cmd: `${currentMonth} summary`, desc: `${currentMonth} মাসের পূর্ণ রিপোর্ট`, category: "monthly" },
+    { cmd: `${currentMonth} dyeing`, desc: `${currentMonth} মাসের ডাইং`, category: "monthly" },
+    { cmd: `${currentMonth} process`, desc: `${currentMonth} মাসের প্রসেস`, category: "monthly" },
+    { cmd: `${currentMonth} folding`, desc: `${currentMonth} মাসের ফোল্ডিং`, category: "monthly" },
+    { cmd: `${currentMonth} per day dyeing`, desc: `${currentMonth} মাসের ডেইলি ডাইং`, category: "monthly" }
+  ];
+
+  // আগের মাস যোগ করি (যদি জানুয়ারি না হয়)
+  if (today.getMonth() > 0) {
+    const lastMonth = months[today.getMonth() - 1];
+    commands.push(
+      { cmd: `${lastMonth.name} summary`, desc: `${lastMonth.name} মাসের পূর্ণ রিপোর্ট`, category: "monthly" },
+      { cmd: `${lastMonth.name} dyeing`, desc: `${lastMonth.name} মাসের ডাইং`, category: "monthly" },
+      { cmd: `${lastMonth.name} per day dyeing`, desc: `${lastMonth.name} মাসের ডেইলি ডাইং`, category: "monthly" }
+    );
+  }
+
+  // তারিখ + প্রসেস (ডাইনামিক - ইউজার নিজে সংখ্যা বসাবে)
+  for (let i = 1; i <= 5; i++) {
+    const randomDay = Math.floor(Math.random() * 20) + 1;
+    commands.push(
+      { cmd: `${randomDay} ${currentMonth} cpb`, desc: `যেমন: ${randomDay} ${currentMonth} - CPB`, category: "date" },
+      { cmd: `${randomDay} ${currentMonth} jigger`, desc: `যেমন: ${randomDay} ${currentMonth} - Jigger`, category: "date" }
+    );
+  }
+
+  // আজকের তারিখ + প্রসেস
+  commands.push(
+    { cmd: `${currentDate} ${currentMonth} cpb`, desc: `আজ (${currentDate} ${currentMonth}) CPB`, category: "date" },
+    { cmd: `${currentDate} ${currentMonth} jigger`, desc: `আজ (${currentDate} ${currentMonth}) Jigger`, category: "date" },
+    { cmd: `${currentDate} ${currentMonth} singing`, desc: `আজ (${currentDate} ${currentMonth}) Singing`, category: "date" }
+  );
+
+  // গতকালের তারিখ + প্রসেস
+  commands.push(
+    { cmd: `${yesterdayDate} ${currentMonth} cpb`, desc: `গতকাল (${yesterdayDate} ${currentMonth}) CPB`, category: "date" },
+    { cmd: `${yesterdayDate} ${currentMonth} jigger`, desc: `গতকাল (${yesterdayDate} ${currentMonth}) Jigger`, category: "date" }
+  );
+
+  return commands;
+}
+
+// ========== সাজেশন দেখানো ==========
 function showSuggestions() {
   const query = input.value.toLowerCase().trim();
+  const commandsDB = getDynamicCommands();
   
   if (query.length < 1) {
     suggestionsDiv.classList.remove("show");
@@ -585,6 +629,7 @@ function send(){
           <div class="help-section-title">🏭 GENERAL</div>
           <div class="help-item">• <span class="help-command">totall</span> - Factory total summary</div>
           <div class="help-item">• <span class="help-command">today</span> - Today's production</div>
+          <div class="help-item">• <span class="help-command">yesterday</span> - Yesterday's production</div>
           <div class="help-item">• <span class="help-command">total dyeing</span> - Total dyeing quantity</div>
         </div>
         
@@ -593,15 +638,25 @@ function send(){
           <div class="help-item">• <span class="help-command">cpb per day</span> - CPB daily</div>
           <div class="help-item">• <span class="help-command">jigger per day</span> - Jigger daily</div>
           <div class="help-item">• <span class="help-command">napthol per day</span> - Napthol daily</div>
-          <div class="help-item">• <span class="help-command">singing per day</span> - Singing daily</div>
         </div>
         
         <div class="help-section">
-          <div class="help-section-title">🔍 SEARCH BY</div>
-          <div class="help-item">• <span class="help-command">15267</span> - Sill number</div>
-          <div class="help-item">• <span class="help-command">15 feb cpb</span> - Date + process</div>
-          <div class="help-item">• <span class="help-command">আলিফ টেক্সটাইল</span> - Party search</div>
-          <div class="help-item">• <span class="help-command">jan summary</span> - Monthly report</div>
+          <div class="help-section-title">📅 DATE + PROCESS</div>
+          <div class="help-item">• <span class="help-command">15 ${currentMonth} cpb</span> - যেকোনো তারিখ দিন</div>
+          <div class="help-item">• <span class="help-command">${currentDate} ${currentMonth} jigger</span> - আজকের জন্য</div>
+          <div class="help-item">• <span class="help-command">${yesterdayDate} ${currentMonth} singing</span> - গতকালের জন্য</div>
+        </div>
+        
+        <div class="help-section">
+          <div class="help-section-title">📆 MONTHLY</div>
+          <div class="help-item">• <span class="help-command">${currentMonth} summary</span> - এই মাসের রিপোর্ট</div>
+          <div class="help-item">• <span class="help-command">${currentMonth} per day dyeing</span> - ডেইলি ডাইং</div>
+        </div>
+        
+        <div class="help-section">
+          <div class="help-section-title">🔍 SEARCH</div>
+          <div class="help-item">• <span class="help-command">15267</span> - সিল নম্বর</div>
+          <div class="help-item">• <span class="help-command">আলিফ টেক্সটাইল</span> - পার্টি নাম</div>
         </div>
       </div>
     `;
