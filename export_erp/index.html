@@ -93,7 +93,7 @@ header{
  border:1px solid #374151;
 }
 
-/* ===== রিপোর্ট স্টাইল - কোনো স্ক্রল ছাড়াই ===== */
+/* ===== রিপোর্ট স্টাইল ===== */
 .report{
  width:100%;
  background:white;
@@ -114,7 +114,6 @@ header{
  color:#1e293b;
 }
 
-/* টেবিল অটো-ফিট - কোনো স্ক্রল নেই */
 .report table{
  width:100%;
  border-collapse:collapse;
@@ -142,16 +141,9 @@ header{
  font-size:11px;
 }
 
-/* টেক্সট মোড়ানো হবে, স্ক্রল হবে না */
 .report td {
   white-space: normal !important;
   max-width: none !important;
-}
-
-/* কলামের প্রস্থ অটো অ্যাডজাস্ট */
-.report table {
-  width: 100%;
-  max-width: 100%;
 }
 
 .report .total-row{
@@ -185,7 +177,7 @@ header{
  font-size:11px;
 }
 
-/* ===== হেল্প কমান্ডের জন্য স্পেশাল স্টাইল ===== */
+/* ===== হেল্প বক্স ===== */
 .help-box {
   background: white;
   color: black;
@@ -223,6 +215,71 @@ header{
 .help-box .help-command {
   font-weight: bold;
   color: #2563eb;
+}
+
+/* ===== অটো সাজেস্ট ড্রপডাউন ===== */
+.suggestions-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+#suggestions {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px 12px 0 0;
+  max-height: 250px;
+  overflow-y: auto;
+  display: none;
+  z-index: 2000;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
+  margin-bottom: 5px;
+}
+
+#suggestions.show {
+  display: block;
+}
+
+.suggestion-item {
+  padding: 12px 15px;
+  cursor: pointer;
+  border-bottom: 1px solid #334155;
+  color: white;
+  transition: all 0.2s;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover {
+  background: #2d3748;
+}
+
+.suggestion-item .cmd {
+  font-weight: bold;
+  color: #22c55e;
+  font-size: 14px;
+}
+
+.suggestion-item .desc {
+  color: #94a3b8;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.suggestion-item .category {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #334155;
+  border-radius: 12px;
+  font-size: 9px;
+  margin-right: 8px;
+  color: #e2e8f0;
+  text-transform: uppercase;
 }
 
 /* ===== কুইক বার ===== */
@@ -267,8 +324,13 @@ footer{
  z-index:1000;
 }
 
+.input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
 input{
- flex:1;
+ width: 100%;
  padding:12px 16px;
  border-radius:24px;
  border:none;
@@ -299,7 +361,7 @@ button:hover{
  background:#16a34a;
 }
 
-/* ===== স্ক্রলবার কাস্টমাইজ ===== */
+/* ===== স্ক্রলবার ===== */
 #chat::-webkit-scrollbar {
   width: 5px;
 }
@@ -309,6 +371,17 @@ button:hover{
 #chat::-webkit-scrollbar-thumb {
   background: #22c55e;
   border-radius: 5px;
+}
+
+#suggestions::-webkit-scrollbar {
+  width: 4px;
+}
+#suggestions::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+#suggestions::-webkit-scrollbar-thumb {
+  background: #22c55e;
+  border-radius: 4px;
 }
 </style>
 </head>
@@ -330,25 +403,151 @@ button:hover{
 <span class="quick-btn" onclick="quick('help')">help</span>
 <span class="quick-btn" onclick="quick('totall')">totall</span>
 <span class="quick-btn" onclick="quick('today')">today</span>
-<span class="quick-btn" onclick="quick('cpb per day')">cpb per day</span>
-<span class="quick-btn" onclick="quick('jigger per day')">jigger per day</span>
-<span class="quick-btn" onclick="quick('total dyeing')">total dyeing</span>
+<span class="quick-btn" onclick="quick('cpb per day')">cpb/day</span>
+<span class="quick-btn" onclick="quick('jigger per day')">jigger/day</span>
+<span class="quick-btn" onclick="quick('total dyeing')">total dye</span>
 </div>
 
 <footer>
-<input id="q" placeholder="Type command...">
-<button onclick="send()">Send</button>
+  <div class="input-wrapper">
+    <input id="q" placeholder="Type command..." autocomplete="off">
+    <div id="suggestions"></div>
+  </div>
+  <button onclick="send()">Send</button>
 </footer>
 
 <script>
 var chat = document.getElementById("chat");
 var input = document.getElementById("q");
+var suggestionsDiv = document.getElementById("suggestions");
 
-// অটো স্ক্রল টু বটম
+// ========== কমান্ড ডাটাবেস ==========
+const commandsDB = [
+  // জেনারেল
+  { cmd: "help", desc: "সকল কমান্ডের তালিকা", category: "general" },
+  { cmd: "totall", desc: "পুরো ফ্যাক্টরির সামারি", category: "general" },
+  { cmd: "today", desc: "আজকের প্রোডাকশন", category: "general" },
+  { cmd: "total dyeing", desc: "মোট ডাইং কোয়ান্টিটি", category: "general" },
+  
+  // পার ডে
+  { cmd: "cpb per day", desc: "CPB এর ডেইলি প্রোডাকশন", category: "daily" },
+  { cmd: "jigger per day", desc: "Jigger এর ডেইলি প্রোডাকশন", category: "daily" },
+  { cmd: "napthol per day", desc: "Napthol এর ডেইলি প্রোডাকশন", category: "daily" },
+  { cmd: "singing per day", desc: "Singing এর ডেইলি প্রোডাকশন", category: "daily" },
+  { cmd: "marcerise per day", desc: "Marcerise এর ডেইলি প্রোডাকশন", category: "daily" },
+  { cmd: "bleach per day", desc: "Bleach এর ডেইলি প্রোডাকশন", category: "daily" },
+  { cmd: "folding per day", desc: "Folding এর ডেইলি প্রোডাকশন", category: "daily" },
+  
+  // তারিখ + প্রসেস
+  { cmd: "15 feb cpb", desc: "১৫ ফেব্রুয়ারি CPB", category: "date" },
+  { cmd: "today jigger", desc: "আজ Jigger", category: "date" },
+  { cmd: "yesterday singing", desc: "গতকাল Singing", category: "date" },
+  
+  // মাসওয়ারি
+  { cmd: "jan summary", desc: "জানুয়ারি পূর্ণ রিপোর্ট", category: "monthly" },
+  { cmd: "feb dyeing", desc: "ফেব্রুয়ারি ডাইং", category: "monthly" },
+  { cmd: "mar process", desc: "মার্চ প্রসেস", category: "monthly" },
+  { cmd: "apr folding", desc: "এপ্রিল ফোল্ডিং", category: "monthly" },
+  
+  // পার ডে ডাইং
+  { cmd: "jan per day dyeing", desc: "জানুয়ারি ডেইলি ডাইং", category: "monthly" },
+  { cmd: "feb per day dyeing", desc: "ফেব্রুয়ারি ডেইলি ডাইং", category: "monthly" },
+  
+  // পার্টি
+  { cmd: "মেসার্স আলিফ", desc: "আলিফের সকল সিল", category: "party" },
+  { cmd: "আলিফ cpb", desc: "আলিফের CPB", category: "party" },
+  { cmd: "নাসির jigger", desc: "নাসিরের Jigger", category: "party" },
+  
+  // সিল/লট
+  { cmd: "15267", desc: "সিল নম্বর ১৫২৬৭", category: "sill" },
+  { cmd: "590", desc: "সিল নম্বর ৫৯০", category: "sill" }
+];
+
+// অটো সাজেস্ট ফাংশন
+function showSuggestions() {
+  const query = input.value.toLowerCase().trim();
+  
+  if (query.length < 1) {
+    suggestionsDiv.classList.remove("show");
+    return;
+  }
+  
+  // কমান্ড ফিল্টার করি
+  const matches = commandsDB.filter(item => 
+    item.cmd.toLowerCase().includes(query) || 
+    item.desc.toLowerCase().includes(query)
+  ).slice(0, 8); // ম্যাক্স ৮ টা সাজেশন
+  
+  if (matches.length === 0) {
+    suggestionsDiv.classList.remove("show");
+    return;
+  }
+  
+  // সাজেশন HTML বানাই
+  let html = '';
+  matches.forEach(item => {
+    const highlightedCmd = item.cmd.replace(new RegExp(query, 'gi'), match => 
+      `<span style="color:#22c55e; font-weight:bold;">${match}</span>`
+    );
+    
+    html += `
+      <div class="suggestion-item" onclick="selectSuggestion('${item.cmd}')">
+        <span class="category">${item.category}</span>
+        <span class="cmd">${highlightedCmd}</span>
+        <div class="desc">${item.desc}</div>
+      </div>
+    `;
+  });
+  
+  suggestionsDiv.innerHTML = html;
+  suggestionsDiv.classList.add("show");
+}
+
+// সাজেশন সিলেক্ট
+function selectSuggestion(cmd) {
+  input.value = cmd;
+  suggestionsDiv.classList.remove("show");
+  send();
+}
+
+// কীবোর্ড নেভিগেশন
+let selectedIndex = -1;
+
+input.addEventListener("keydown", function(e) {
+  const items = document.querySelectorAll(".suggestion-item");
+  
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+    highlightItem(items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    selectedIndex = Math.max(selectedIndex - 1, -1);
+    highlightItem(items);
+  } else if (e.key === "Enter" && selectedIndex >= 0) {
+    e.preventDefault();
+    items[selectedIndex].click();
+  } else {
+    selectedIndex = -1;
+  }
+});
+
+function highlightItem(items) {
+  items.forEach((item, i) => {
+    if (i === selectedIndex) {
+      item.style.background = "#2d3748";
+    } else {
+      item.style.background = "";
+    }
+  });
+}
+
+// স্ক্রল ফাংশন
 function scrollToBottom() {
   chat.scrollTop = chat.scrollHeight;
 }
 
+// মেসেজ অ্যাড
 function add(text, type){
   var d = document.createElement("div");
 
@@ -367,14 +566,16 @@ function add(text, type){
   scrollToBottom();
 }
 
+// সেন্ড ফাংশন
 function send(){
   var text = input.value.trim();
   if(text === "") return;
 
   add(text, "user");
   input.value = "";
+  suggestionsDiv.classList.remove("show");
 
-  // ========== হেল্প কমান্ড চেক ==========
+  // হেল্প কমান্ড
   if(text.toLowerCase() === "help") {
     const helpHTML = `
       <div class="help-box">
@@ -389,25 +590,18 @@ function send(){
         
         <div class="help-section">
           <div class="help-section-title">📊 PER DAY REPORTS</div>
-          <div class="help-item">• <span class="help-command">cpb per day</span> - CPB daily production</div>
-          <div class="help-item">• <span class="help-command">jigger per day</span> - Jigger daily production</div>
-          <div class="help-item">• <span class="help-command">napthol per day</span> - Napthol daily production</div>
+          <div class="help-item">• <span class="help-command">cpb per day</span> - CPB daily</div>
+          <div class="help-item">• <span class="help-command">jigger per day</span> - Jigger daily</div>
+          <div class="help-item">• <span class="help-command">napthol per day</span> - Napthol daily</div>
+          <div class="help-item">• <span class="help-command">singing per day</span> - Singing daily</div>
         </div>
         
         <div class="help-section">
           <div class="help-section-title">🔍 SEARCH BY</div>
-          <div class="help-item">• <span class="help-command">sill 590</span> - Sill number report</div>
-          <div class="help-item">• <span class="help-command">3 feb cpb</span> - Date + process</div>
-          <div class="help-item">• <span class="help-command">party RB design</span> - Party search</div>
-          <div class="help-item">• <span class="help-command">feb dyeing</span> - Monthly dyeing</div>
-          <div class="help-item">• <span class="help-command">feb per day dyeing</span> - Monthly table</div>
-          <div class="help-item">• <span class="help-command">feb rolling inspection</span> - Rolling inspection</div>
-        </div>
-        
-        <div class="help-section">
-          <div class="help-section-title">🔢 LOT SEARCH</div>
-          <div class="help-item">• <span class="help-command">15267</span> - Direct lot number (5-6 digits)</div>
-          <div class="help-item">• <span class="help-command">lot 15267</span> - Lot with keyword</div>
+          <div class="help-item">• <span class="help-command">15267</span> - Sill number</div>
+          <div class="help-item">• <span class="help-command">15 feb cpb</span> - Date + process</div>
+          <div class="help-item">• <span class="help-command">আলিফ টেক্সটাইল</span> - Party search</div>
+          <div class="help-item">• <span class="help-command">jan summary</span> - Monthly report</div>
         </div>
       </div>
     `;
@@ -415,7 +609,6 @@ function send(){
     add(helpHTML, "bot");
     return;
   }
-  // ========== হেল্প কমান্ড শেষ ==========
 
   // Loading
   add("⏳ Loading...", "bot");
@@ -441,17 +634,27 @@ function send(){
   });
 }
 
+// কুইক বাটন
 function quick(t){
   input.value = t;
   send();
 }
 
-// Enter key
+// ইভেন্ট লিসেনার
 input.addEventListener("keypress", function(e) {
-  if(e.key === "Enter") send();
+  if(e.key === "Enter" && selectedIndex === -1) send();
 });
 
-// Print function
+input.addEventListener("input", showSuggestions);
+
+// ডকুমেন্টে ক্লিক করলে সাজেশন বন্ধ
+document.addEventListener("click", function(e) {
+  if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+    suggestionsDiv.classList.remove("show");
+  }
+});
+
+// প্রিন্ট ফাংশন
 function printChat(){
   var reports = document.querySelectorAll(".report");
   if(reports.length === 0) return;
@@ -471,90 +674,28 @@ function printChat(){
   <head>
     <title>Production Report</title>
     <style>
-      body { 
-        font-family: Arial; 
-        padding: 20px; 
-        max-width: 1000px;
-        margin: 0 auto;
-      }
-      .company { 
-        font-size: 22px; 
-        font-weight: bold; 
-        text-align: center;
-        color: #1a202c;
-      }
-      .address { 
-        text-align: center; 
-        font-size: 12px; 
-        margin-top: 4px;
-        color: #4a5568;
-      }
-      .title { 
-        text-align: center; 
-        font-size: 16px; 
-        font-weight: bold; 
-        margin: 15px 0;
-        color: #2d3748;
-      }
-      .meta {
-        background: #f7fafc;
-        padding: 8px;
-        border-radius: 4px;
-        margin: 10px 0;
-        font-size: 12px;
-      }
-      table { 
-        width: 100%; 
-        border-collapse: collapse; 
-        margin: 15px 0;
-        font-size: 12px;
-        table-layout: auto;
-      }
-      th, td { 
-        border: 1px solid #000; 
-        padding: 6px; 
-        text-align: center; 
-        word-break: break-word;
-      }
-      th { 
-        background: #f2f2f2; 
-      }
-      .footer { 
-        margin-top: 30px; 
-        display: flex; 
-        justify-content: space-between; 
-        font-size: 12px;
-        border-top: 1px solid #ccc;
-        padding-top: 15px;
-      }
-      hr {
-        margin: 10px 0;
-        border: 1px solid #e2e8f0;
-      }
+      body { font-family: Arial; padding: 20px; max-width: 1000px; margin: 0 auto; }
+      .company { font-size: 22px; font-weight: bold; text-align: center; color: #1a202c; }
+      .address { text-align: center; font-size: 12px; margin-top: 4px; color: #4a5568; }
+      .title { text-align: center; font-size: 16px; font-weight: bold; margin: 15px 0; color: #2d3748; }
+      .meta { background: #f7fafc; padding: 8px; border-radius: 4px; margin: 10px 0; font-size: 12px; }
+      table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 12px; }
+      th, td { border: 1px solid #000; padding: 6px; text-align: center; }
+      th { background: #f2f2f2; }
+      .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid #ccc; padding-top: 15px; }
+      hr { margin: 10px 0; border: 1px solid #e2e8f0; }
     </style>
   </head>
   <body>
     <div class="company">Sukhy Dyeing & Finishing Mills Ltd.</div>
     <div class="address">Kurerpar, Sekherchor, Narsingdi.</div>
     <div class="title">34" Factory ERP Report</div>
-    
-    <div class="meta">
-      <b>Generated:</b> ${now}<br>
-      <b>Query:</b> ${input.value || 'N/A'}
-    </div>
-
+    <div class="meta"><b>Generated:</b> ${now}<br><b>Query:</b> ${input.value || 'N/A'}</div>
     <hr>
-
     ${lastReport}
-
     <div class="footer">
-      <div>
-        <b>Prepared By:</b> Mehedi Hasan<br>
-        <b>Developed By:</b> Mehedi Hasan
-      </div>
-      <div>
-        <b>Signature:</b> ________________________
-      </div>
+      <div><b>Prepared By:</b> Mehedi Hasan<br><b>Developed By:</b> Mehedi Hasan</div>
+      <div><b>Signature:</b> ________________________</div>
     </div>
   </body>
   </html>
@@ -563,10 +704,8 @@ function printChat(){
   win.print();
 }
 
-// উইন্ডো রিসাইজ হলে স্ক্রল ঠিক রাখে
-window.addEventListener('resize', function() {
-  scrollToBottom();
-});
+// রিসাইজ
+window.addEventListener('resize', scrollToBottom);
 </script>
 
 </body>
