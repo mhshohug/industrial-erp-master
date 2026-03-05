@@ -108,7 +108,7 @@ body{
   align-self: flex-start;
 }
 
-/* ===== রিপোর্ট স্টাইল - স্ক্রল ছাড়াই ===== */
+/* ===== রিপোর্ট স্টাইল ===== */
 .report {
   width: 100%;
   background: white;
@@ -121,7 +121,6 @@ body{
   overflow: visible;
 }
 
-/* টেবিল অটো-ফিট - কোনো স্ক্রলবার নেই */
 .report table {
   width: 100%;
   border-collapse: collapse;
@@ -157,10 +156,6 @@ body{
   white-space: normal !important;
 }
 
-.report tr:nth-child(even) td {
-  background: #f8fafc;
-}
-
 .report .positive {
   color: #0b5e0b;
   font-weight: bold;
@@ -181,62 +176,68 @@ body{
   border-left: 3px solid #22c55e;
 }
 
-/* STN ব্লক স্টাইল - স্ক্রল ছাড়াই */
-.report .stn-block {
-  margin: 5px 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  overflow: hidden;
+/* ===== অটো সাজেস্ট ড্রপডাউন ===== */
+.suggestions-wrapper {
+  position: relative;
+  width: 100%;
 }
 
-.report .stn-title {
-  background: #2d3748;
+#suggestions {
+  position: absolute;
+  bottom: 60px;
+  left: 8px;
+  right: 8px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px 12px 0 0;
+  max-height: 250px;
+  overflow-y: auto;
+  display: none;
+  z-index: 2000;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
+}
+
+#suggestions.show {
+  display: block;
+}
+
+.suggestion-item {
+  padding: 12px 15px;
+  cursor: pointer;
+  border-bottom: 1px solid #334155;
   color: white;
-  padding: 4px 8px;
-  font-weight: bold;
-  font-size: 11px;
+  transition: all 0.2s;
 }
 
-.report .process-row {
-  display: flex;
-  padding: 3px 8px;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 11px;
-  white-space: normal;
-  word-break: break-word;
-}
-
-.report .process-row:last-child {
+.suggestion-item:last-child {
   border-bottom: none;
 }
 
-.report .process-name {
-  flex: 1;
-  font-weight: 500;
-  white-space: normal;
-  word-break: break-word;
+.suggestion-item:hover {
+  background: #2d3748;
 }
 
-.report .process-value {
+.suggestion-item .cmd {
   font-weight: bold;
-  color: #2d3748;
-  white-space: normal;
-  word-break: break-word;
+  color: #22c55e;
+  font-size: 14px;
 }
 
-.report .total-row {
-  background: #f0f4f8;
-  padding: 5px 8px;
-  font-weight: bold;
-  border-top: 2px solid #cbd5e0;
+.suggestion-item .desc {
+  color: #94a3b8;
   font-size: 11px;
-  white-space: normal;
-  word-break: break-word;
+  margin-top: 4px;
 }
 
-/* টেবিলের মধ্যে কোনো স্ক্রলবার আসবে না */
-.report::-webkit-scrollbar {
-  display: none;
+.suggestion-item .category {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #334155;
+  border-radius: 12px;
+  font-size: 9px;
+  margin-right: 8px;
+  color: #e2e8f0;
+  text-transform: uppercase;
 }
 
 /* ===== INPUT ===== */
@@ -245,12 +246,16 @@ body{
   bottom:0;
   left:0;
   width:100%;
-  display:flex;
   padding:8px;
   background:#111827;
   box-sizing: border-box;
-  gap: 6px;
   z-index:1000;
+}
+
+.input-container {
+  display: flex;
+  gap: 6px;
+  position: relative;
 }
 
 #text{
@@ -277,7 +282,7 @@ body{
   background:#16a34a;
 }
 
-/* ===== স্ক্রলবার - শুধু চ্যাটের জন্য ===== */
+/* ===== স্ক্রলবার ===== */
 #chat::-webkit-scrollbar {
   width: 4px;
 }
@@ -285,6 +290,17 @@ body{
   background: #1e293b;
 }
 #chat::-webkit-scrollbar-thumb {
+  background: #22c55e;
+  border-radius: 4px;
+}
+
+#suggestions::-webkit-scrollbar {
+  width: 4px;
+}
+#suggestions::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+#suggestions::-webkit-scrollbar-thumb {
   background: #22c55e;
   border-radius: 4px;
 }
@@ -314,8 +330,11 @@ body{
 </div>
 
 <div id="inputBox">
-  <input id="text" placeholder="Type Date / STN / Process..." />
-  <button id="send">Send</button>
+  <div class="input-container">
+    <input id="text" placeholder="Type command..." autocomplete="off" />
+    <button id="send">Send</button>
+  </div>
+  <div id="suggestions"></div>
 </div>
 
 <script>
@@ -323,13 +342,218 @@ const chat = document.getElementById("chat");
 const text = document.getElementById("text");
 const sendBtn = document.getElementById("send");
 const printBtn = document.getElementById("printBtn");
+const suggestionsDiv = document.getElementById("suggestions");
 
 let lastUserQuery = "";
 
+// ========== ডাইনামিক মাস ডিটেকশন ==========
+const today = new Date();
+const months = [
+  { name: 'jan', full: 'January' },
+  { name: 'feb', full: 'February' },
+  { name: 'mar', full: 'March' },
+  { name: 'apr', full: 'April' },
+  { name: 'may', full: 'May' },
+  { name: 'jun', full: 'June' },
+  { name: 'jul', full: 'July' },
+  { name: 'aug', full: 'August' },
+  { name: 'sep', full: 'September' },
+  { name: 'oct', full: 'October' },
+  { name: 'nov', full: 'November' },
+  { name: 'dec', full: 'December' }
+];
+
+const currentMonth = months[today.getMonth()].name;
+const prevMonth = today.getMonth() > 0 ? months[today.getMonth() - 1].name : null;
+const nextMonth = today.getMonth() < 11 ? months[today.getMonth() + 1].name : null;
+const currentDate = today.getDate();
+const yesterday = new Date(today);
+yesterday.setDate(today.getDate() - 1);
+const yesterdayDate = yesterday.getDate();
+
+// ========== কুইক বাটন আপডেট (ডাইনামিক) ==========
+function updateQuickButtons() {
+  const topBar = document.getElementById("topBar");
+  topBar.innerHTML = '';
+  
+  const quickButtons = [
+    { cmd: `${currentMonth}`, desc: `এই মাস (${currentMonth})` },
+    { cmd: `total ${currentMonth}`, desc: `টোটাল ${currentMonth}` },
+    { cmd: `1 ${currentMonth}`, desc: `১ ${currentMonth}` },
+    { cmd: `15 ${currentMonth}`, desc: `১৫ ${currentMonth}` },
+    { cmd: `stn 1 ${currentMonth}`, desc: `STN 1 ${currentMonth}` },
+    { cmd: `stn 2 ${currentMonth}`, desc: `STN 2 ${currentMonth}` },
+    { cmd: `stn 3 ${currentMonth}`, desc: `STN 3 ${currentMonth}` },
+    { cmd: `stn 4 ${currentMonth}`, desc: `STN 4 ${currentMonth}` },
+    { cmd: `stn 5 ${currentMonth}`, desc: `STN 5 ${currentMonth}` },
+    { cmd: `${currentMonth} per day machine`, desc: `পার ডে মেশিন` },
+    { cmd: `${currentMonth} per day process`, desc: `পার ডে প্রসেস` }
+  ];
+  
+  quickButtons.forEach(item => {
+    const btn = document.createElement("span");
+    btn.className = "cmd";
+    btn.innerText = item.desc;
+    btn.onclick = () => quick(item.cmd);
+    topBar.appendChild(btn);
+  });
+}
+
+// ========== ডাইনামিক কমান্ড জেনারেটর ==========
+function generateCommands() {
+  const baseCommands = [
+    // মাস রিপোর্ট
+    { cmd: `${currentMonth}`, desc: `${currentMonth} মাসের রিপোর্ট`, category: "month" },
+    { cmd: `total ${currentMonth}`, desc: `${currentMonth} টোটাল রিপোর্ট`, category: "month" }
+  ];
+  
+  // আগের মাস (যদি থাকে)
+  if (prevMonth) {
+    baseCommands.push(
+      { cmd: `${prevMonth}`, desc: `${prevMonth} মাসের রিপোর্ট`, category: "month" },
+      { cmd: `total ${prevMonth}`, desc: `${prevMonth} টোটাল রিপোর্ট`, category: "month" }
+    );
+  }
+  
+  // পরের মাস (যদি থাকে)
+  if (nextMonth) {
+    baseCommands.push(
+      { cmd: `${nextMonth}`, desc: `${nextMonth} মাসের রিপোর্ট`, category: "month" }
+    );
+  }
+  
+  // তারিখ রিপোর্ট (ডাইনামিক)
+  for (let i = 1; i <= 5; i++) {
+    const randomDay = Math.floor(Math.random() * 25) + 1;
+    baseCommands.push(
+      { cmd: `${randomDay} ${currentMonth}`, desc: `${randomDay} ${currentMonth} তারিখের রিপোর্ট`, category: "date" },
+      { cmd: `${randomDay} ${prevMonth || currentMonth}`, desc: `${randomDay} ${prevMonth || currentMonth} তারিখের রিপোর্ট`, category: "date" }
+    );
+  }
+  
+  // আজকের তারিখ
+  baseCommands.push(
+    { cmd: `${currentDate} ${currentMonth}`, desc: `আজ (${currentDate} ${currentMonth})`, category: "date" }
+  );
+  
+  // গতকালের তারিখ
+  baseCommands.push(
+    { cmd: `${yesterdayDate} ${currentMonth}`, desc: `গতকাল (${yesterdayDate} ${currentMonth})`, category: "date" }
+  );
+  
+  // STN রিপোর্ট
+  for (let stn = 1; stn <= 5; stn++) {
+    baseCommands.push(
+      { cmd: `stn ${stn} ${currentMonth}`, desc: `STN ${stn} ${currentMonth}`, category: "stn" }
+    );
+    
+    if (prevMonth) {
+      baseCommands.push(
+        { cmd: `stn ${stn} ${prevMonth}`, desc: `STN ${stn} ${prevMonth}`, category: "stn" }
+      );
+    }
+  }
+  
+  // পার ডে রিপোর্ট
+  baseCommands.push(
+    { cmd: `${currentMonth} per day machine`, desc: `${currentMonth} পার ডে মেশিন`, category: "perday" },
+    { cmd: `${currentMonth} per day process`, desc: `${currentMonth} পার ডে প্রসেস`, category: "perday" }
+  );
+  
+  if (prevMonth) {
+    baseCommands.push(
+      { cmd: `${prevMonth} per day machine`, desc: `${prevMonth} পার ডে মেশিন`, category: "perday" },
+      { cmd: `${prevMonth} per day process`, desc: `${prevMonth} পার ডে প্রসেস`, category: "perday" }
+    );
+  }
+  
+  return baseCommands;
+}
+
+// ========== অটো সাজেশন ==========
+text.addEventListener("input", function() {
+  const val = this.value.toLowerCase().trim();
+  suggestionsDiv.innerHTML = "";
+  
+  if (val.length < 1) {
+    suggestionsDiv.classList.remove("show");
+    return;
+  }
+  
+  const commands = generateCommands();
+  
+  const matches = commands.filter(item => 
+    item.cmd.toLowerCase().includes(val) || 
+    item.desc.toLowerCase().includes(val)
+  ).slice(0, 8);
+  
+  if (matches.length === 0) {
+    suggestionsDiv.classList.remove("show");
+    return;
+  }
+  
+  let html = '';
+  matches.forEach(item => {
+    const highlightedCmd = item.cmd.replace(new RegExp(val, 'gi'), match => 
+      `<span style="color:#22c55e; font-weight:bold;">${match}</span>`
+    );
+    
+    html += `
+      <div class="suggestion-item" onclick="selectSuggestion('${item.cmd}')">
+        <span class="category">${item.category}</span>
+        <span class="cmd">${highlightedCmd}</span>
+        <div class="desc">${item.desc}</div>
+      </div>
+    `;
+  });
+  
+  suggestionsDiv.innerHTML = html;
+  suggestionsDiv.classList.add("show");
+});
+
+// ========== সাজেশন সিলেক্ট ==========
+function selectSuggestion(cmd) {
+  text.value = cmd;
+  suggestionsDiv.classList.remove("show");
+  sendMessage();
+}
+
+// ========== কীবোর্ড নেভিগেশন ==========
+let selectedIndex = -1;
+
+text.addEventListener("keydown", function(e) {
+  const items = document.querySelectorAll(".suggestion-item");
+  
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+    highlightItem(items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    selectedIndex = Math.max(selectedIndex - 1, -1);
+    highlightItem(items);
+  } else if (e.key === "Enter" && selectedIndex >= 0) {
+    e.preventDefault();
+    items[selectedIndex].click();
+  } else {
+    selectedIndex = -1;
+  }
+});
+
+function highlightItem(items) {
+  items.forEach((item, i) => {
+    if (i === selectedIndex) {
+      item.style.background = "#2d3748";
+    } else {
+      item.style.background = "";
+    }
+  });
+}
+
+// ========== মেসেজ অ্যাড ==========
 function addMessage(content, type){
   const div = document.createElement("div");
   
-  // চেক করছে কন্টেন্টে HTML টেবিল আছে কিনা
   if(content && (content.includes("<table") || content.includes("stn-block"))) {
     div.className = "report";
     div.innerHTML = content;
@@ -347,6 +571,7 @@ function addMessage(content, type){
 
 function quick(cmd){
   text.value = cmd;
+  suggestionsDiv.classList.remove("show");
   sendMessage();
 }
 
@@ -355,6 +580,7 @@ async function sendMessage(){
   if(!question) return;
 
   lastUserQuery = question;
+  suggestionsDiv.classList.remove("show");
 
   addMessage(question, "user");
   text.value = "";
@@ -383,18 +609,14 @@ async function sendMessage(){
   }
 }
 
-/* সেন্ড বাটন */
-sendBtn.addEventListener("click", sendMessage);
-
-/* এন্টার কী */
-text.addEventListener("keydown", function(e){
-  if(e.key === "Enter"){
-    e.preventDefault();
-    sendMessage();
+// ========== ডকুমেন্টে ক্লিক ==========
+document.addEventListener("click", function(e) {
+  if (!text.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+    suggestionsDiv.classList.remove("show");
   }
 });
 
-/* প্রিন্ট ফাংশন */
+// ========== প্রিন্ট ফাংশন ==========
 printBtn.addEventListener("click", function(){
 
   const reports = document.querySelectorAll(".report, .bot");
@@ -497,7 +719,20 @@ printBtn.addEventListener("click", function(){
   newWindow.print();
 });
 
-// স্ক্রল টপ টু বটম
+// ========== সেন্ড বাটন ==========
+sendBtn.addEventListener("click", sendMessage);
+
+// ========== এন্টার কী ==========
+text.addEventListener("keydown", function(e){
+  if(e.key === "Enter" && selectedIndex === -1){
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// ========== ইনিশিয়ালাইজ ==========
+updateQuickButtons();
+
 function scrollToBottom() {
   chat.scrollTop = chat.scrollHeight;
 }
