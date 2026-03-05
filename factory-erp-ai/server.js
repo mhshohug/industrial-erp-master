@@ -20,7 +20,11 @@ const GID_MAP = {
     rolling: "1498627234"
 };
 
-// HTML টেমপ্লেট ফাংশন
+// ================= DeepSeek AI কনফিগারেশন =================
+const DEEPSEEK_API_KEY = "sk-0f6b0fad25e4412889e5447427782b73"; // আপনার API key দিন
+const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+
+// ================= HTML টেমপ্লেট ফাংশন =================
 const htmlWrapper = (title, content) => {
     return `
     <style>
@@ -211,6 +215,54 @@ function getParsedDate(q){
 
     return moment(`${match[1]} ${match[2]} ${year}`, "D MMM YYYY")
         .format("DD-MMM-YYYY");
+}
+
+// ================= DeepSeek NLP প্রসেসর =================
+async function processWithDeepSeek(question) {
+    try {
+        const prompt = `
+        You are an ERP assistant for a textile factory. Convert this Bangla/English mixed query into a simple ERP command.
+
+        Available commands format:
+        - [sill number] (e.g., 590)
+        - [day] [month] [section] (e.g., 15 mar cpb)
+        - [party name] (e.g., RB Design)
+        - [month] dyeing (e.g., mar dyeing)
+        - today
+        - yesterday
+        - total dyeing
+        - [month] per day dyeing (e.g., mar per day dyeing)
+        - [month] rolling inspection (e.g., mar rolling inspection)
+        - [section] per day (e.g., cpb per day)
+
+        Available sections: cpb, jet, jigger, singing, marcerise, rolling
+
+        User query: "${question}"
+
+        Return ONLY the command, nothing else. If query is in Bangla, convert to English command.
+        `;
+
+        const response = await axios.post(DEEPSEEK_API_URL, {
+            model: "deepseek-chat",
+            messages: [
+                { role: "system", content: "You are an ERP assistant that converts Bangla/English queries to simple commands." },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0.1,
+            max_tokens: 50
+        }, {
+            headers: {
+                "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+                "Content-Type": "application/json"
+            }
+        });
+
+        return response.data.choices[0].message.content.trim();
+
+    } catch (error) {
+        console.error("DeepSeek Error:", error.message);
+        return null;
+    }
 }
 
 // ================= ASK =================
@@ -475,7 +527,7 @@ if(sMatch && !q.includes("total")){
     return res.json({ reply: html });
 }
 
-// ===== পার ডে ডাইং রিপোর্ট (মাস ওয়াইজ) - নতুন ফিচার =====
+// ===== পার ডে ডাইং রিপোর্ট (মাস ওয়াইজ) =====
 if(q.includes("per day") && q.includes("dyeing")){
 
     const monthMatch = q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/);
@@ -908,6 +960,147 @@ if(q.includes("per day") && !q.includes("dyeing")){
         `);
 
         return res.json({ reply: html });
+    }
+}
+
+// ================= DeepSeek AI ফallback (যদি কোন কমান্ড ম্যাচ না করে) =================
+// এই অংশ যোগ করা হয়েছে - এটি আপনার existing কোডের পরে বসবে
+
+// যদি কোন কমান্ড ম্যাচ না করে এবং DeepSeek API key দেওয়া থাকে
+if (DEEPSEEK_API_KEY !== "sk-0f6b0fad25e4412889e5447427782b73") {
+    
+    // DeepSeek দিয়ে চেষ্টা করি
+    const aiCommand = await processWithDeepSeek(q);
+    
+    if (aiCommand) {
+        console.log("🤖 DeepSeek suggested:", aiCommand);
+        
+        // DeepSeek এর suggestion নিয়ে আবার চেষ্টা করি
+        const newQ = aiCommand.toLowerCase();
+        
+        // আবার চেক করি সিল নম্বর
+        const aiSillMatch = newQ.match(/(\d{3,4})/);
+        if (aiSillMatch) {
+            const sill = aiSillMatch[1];
+            const gRow = grey.find(r => (r[2] || "").trim() === sill);
+            if (gRow) {
+                const getVal = (rows, s, sIdx, vIdx) =>
+                    rows.reduce((a, r) => r[sIdx] === s ? a + (parseFloat((r[vIdx] || "").replace(/,/g, '')) || 0) : a, 0);
+
+                const data = {
+                    sing: getVal(sing, sill, 1, 8),
+                    marc: getVal(marc, sill, 1, 8),
+                    cpb: getVal(cpb, sill, 1, 6),
+                    jet: getVal(jet, sill, 1, 6),
+                    jig: getVal(jig, sill, 1, 7),
+                    roll: getVal(roll, sill, 1, 7)
+                };
+
+                const lotSize = parseFloat((gRow[6] || "").replace(/,/g, '')) || 0;
+                const totalDyeing = data.cpb + data.jet + data.jig;
+                const diff = lotSize - data.roll;
+                const diffClass = diff <= 0 ? 'positive' : 'negative';
+                const diffText = diff <= 0 ? 'Extra' : 'Short';
+
+                let html = htmlWrapper(`Sill ${sill} Report (AI)`, `
+                    <div class="info-row">
+                        <span class="party-name">${gRow[3]}</span> | ${gRow[4]} | Lot: ${formatNumber(lotSize)} yds
+                    </div>
+                    <table class="erp-table">
+                        <tr><th>Process</th><th>Yards</th></tr>
+                        <tr><td>Singing</td><td>${formatNumber(data.sing)}</td></tr>
+                        <tr><td>Marcerise</td><td>${formatNumber(data.marc)}</td></tr>
+                        <tr><td>CPB</td><td>${formatNumber(data.cpb)}</td></tr>
+                        <tr><td>Jet</td><td>${formatNumber(data.jet)}</td></tr>
+                        <tr><td>Jigger</td><td>${formatNumber(data.jig)}</td></tr>
+                        <tr><td style="font-weight:bold">Rolling</td><td style="font-weight:bold">${formatNumber(data.roll)}</td></tr>
+                    </table>
+                    <div class="summary-box">
+                        📍 Dyeing: ${formatNumber(totalDyeing)} yds<br>
+                        <span class="${diffClass}">📊 ${diffText}: ${formatNumber(Math.abs(diff))} yds</span>
+                    </div>
+                `);
+                return res.json({ reply: html });
+            }
+        }
+        
+        // পার্টি সার্চ
+        if (newQ.includes("party") || newQ.includes("design") || newQ.includes("textile")) {
+            const partyName = newQ.replace("party", "").trim();
+            if (partyName.length >= 2) {
+                let input = normalizeName(partyName);
+                let bestMatch = uniqueParties.find(p => {
+                    let np = normalizeName(p);
+                    return np.includes(input);
+                });
+
+                if (bestMatch) {
+                    let rows = grey.filter(r => normalizeName(r[3]) === normalizeName(bestMatch));
+                    let last10 = rows.slice(-10);
+
+                    let tableRows = '';
+                    last10.forEach(r => {
+                        let lot = parseFloat((r[6] || "").replace(/,/g, '')) || 0;
+                        let rolling = roll.reduce((a, rr) => (rr[1] || "").trim() === (r[2] || "").trim() ? a + (parseFloat((rr[7] || "").replace(/,/g, '')) || 0) : a, 0);
+                        let diff = rolling - lot;
+                        let diffClass = diff >= 0 ? 'positive' : 'negative';
+                        let diffSign = diff >= 0 ? '+' : '';
+
+                        tableRows += `
+                        <tr>
+                            <td><b>${r[2]}</b></td>
+                            <td>${r[4]}</td>
+                            <td>${formatNumber(lot)}</td>
+                            <td>${formatNumber(rolling)}</td>
+                            <td class="${diffClass}">${diffSign}${formatNumber(Math.abs(diff))}</td>
+                        </tr>`;
+                    });
+
+                    let html = htmlWrapper(`${bestMatch} - Last 10 Lots (AI)`, `
+                        <table class="erp-table">
+                            <tr><th>Sill</th><th>Quality</th><th>Lot</th><th>Roll</th><th>Diff</th></tr>
+                            ${tableRows}
+                        </table>
+                        <div class="summary-box">📊 Total: ${rows.length} entries | Showing last 10</div>
+                    `);
+
+                    return res.json({ reply: html });
+                }
+            }
+        }
+        
+        // মাসিক ডাইং
+        const monthDyeingMatch = newQ.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec).*dyeing/);
+        if (monthDyeingMatch) {
+            const monthName = monthDyeingMatch[1];
+            const monthIndex = moment().month(monthName).month();
+
+            const filterByMonth = (rows, idx) => 
+                rows.reduce((acc, r) => {
+                    const d = normalizeSheetDate(r[0]);
+                    const m = moment(d, "DD-MMM-YYYY", true);
+                    if(m.isValid() && m.month() === monthIndex){
+                        return acc + (parseFloat((r[idx] || "").replace(/,/g, '')) || 0);
+                    }
+                    return acc;
+                }, 0);
+
+            const cpbTotal = filterByMonth(cpb, 6);
+            const jetTotal = filterByMonth(jet, 6);
+            const jiggerTotal = filterByMonth(jig, 7);
+            const grandTotal = cpbTotal + jetTotal + jiggerTotal;
+
+            let html = htmlWrapper(`${monthName.toUpperCase()} Dyeing Report (AI)`, `
+                <table class="erp-table">
+                    <tr><th>Section</th><th>Yards</th></tr>
+                    <tr><td>CPB</td><td>${formatNumber(cpbTotal)}</td></tr>
+                    <tr><td>Jet</td><td>${formatNumber(jetTotal)}</td></tr>
+                    <tr><td>Jigger</td><td>${formatNumber(jiggerTotal)}</td></tr>
+                </table>
+                <div class="summary-box">📍 Total: ${formatNumber(grandTotal)} yds</div>
+            `);
+            return res.json({ reply: html });
+        }
     }
 }
 
