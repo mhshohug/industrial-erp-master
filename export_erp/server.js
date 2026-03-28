@@ -10,16 +10,17 @@ router.use(express.static(__dirname));
 
 const SHEET_ID = "17AlSp8QqY3_YmW9bb1W-fMg9m7FFBxtYKXc2Cr9fq3A";
 
+// একাধিক GID সাপোর্ট সহ কনফিগারেশন
 const GID_MAP = {
-  grey: "1069156463",
-  singing: "1204186084",
-  marcerise: "883470384",
-  bleach: "1612554044",
-  cpb: "809334692",
-  napthol: "1825175747",
-  jigger: "392149567",
-  ex_jigger: "843042263",
-  folding: "2051005815",
+  grey: ["1069156463"],
+  singing: ["1204186084"],
+  marcerise: ["883470384"],
+  bleach: ["1612554044"],
+  cpb: ["809334692"],  // একাধিক GID যোগ করা হলো
+  napthol: ["1825175747"],
+  jigger: ["392149567"],
+  ex_jigger: ["843042263"],
+  folding: ["2051005815"],
 };
 
 // ================= HTML WRAPPER ফাংশন (ইম্প্রুভড) =================
@@ -198,7 +199,8 @@ function getKeywordDate(input){
   return null;
 }
 
-async function fetchSheet(gid){
+// আপডেটেড fetchSheet ফাংশন - একাধিক GID সাপোর্ট
+async function fetchSheet(gid) {
   try{
     const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
     const {data}=await axios.get(url);
@@ -210,6 +212,30 @@ async function fetchSheet(gid){
     return [];
   }
 }
+
+// নতুন ফাংশন: একাধিক GID থেকে ডাটা মার্জ করা
+async function fetchMergedSheet(sheetName) {
+  const gids = GID_MAP[sheetName];
+  if (!gids || gids.length === 0) return [];
+  
+  const allData = await Promise.all(
+    gids.map(gid => fetchSheet(gid))
+  );
+  
+  if (allData.length === 0) return [];
+  
+  // প্রথম ফাইলের হেডার রাখুন
+  const merged = [allData[0][0]];
+  
+  // সব ডাটা যোগ করুন (প্রথম ফাইলের হেডার বাদ দিয়ে)
+  for (let i = 0; i < allData.length; i++) {
+    const rows = allData[i].slice(1);
+    merged.push(...rows);
+  }
+  
+  return merged;
+}
+
 /* =========================================================
    PART 2 – CALCULATION ENGINE (SAFE VERSION)
 ========================================================= */
@@ -424,6 +450,7 @@ function getSillReport(db, inputNumber) {
     };
   });
 }
+
 /* =========================================================
    PART 3 – ROUTER START + HTML FORMATTERS
 ========================================================= */
@@ -436,13 +463,11 @@ router.post("/ask", async (req, res) => {
 
   const keys = Object.keys(GID_MAP);
 
-  const results = await Promise.all(
-    keys.map(k => fetchSheet(GID_MAP[k]))
-  );
-
+  // নতুন পদ্ধতি: একাধিক GID থেকে ডাটা মার্জ করে ফেচ করা
   const db = {};
-  keys.forEach((k,i)=> db[k]=results[i]);
-
+  for (const key of keys) {
+    db[key] = await fetchMergedSheet(key);
+  }
 
   /* ===================== HTML FORMATTERS ===================== */
 
@@ -453,7 +478,7 @@ router.post("/ask", async (req, res) => {
     let rows = '';
     data.days.forEach(d => {
       if(d.qty > 0) {
-        rows += `<tr><td>${String(d.day).padStart(2, '0')}</td><td>${d.qty.toLocaleString()}</td></tr>`;
+        rows += `<tr><td style="width:30%">${String(d.day).padStart(2, '0')}</td><td style="width:70%">${d.qty.toLocaleString()}</td></tr>`;
       }
     });
 
@@ -867,9 +892,9 @@ if (monthMatch) {
       reply: htmlWrapper(`${monthMatch[1].toUpperCase()} Process`, `
         <table class="erp-table">
           <tr><td>Singing</td><td>${process.s.toLocaleString()}</td></tr>
-          <tr><td>Mercerise</td><td>${process.m.toLocaleString()}</td></tr>
-          <tr><td>Bleach</td><td>${process.b.toLocaleString()}</td></tr>
-        </table>
+           <tr><td>Mercerise</td><td>${process.m.toLocaleString()}</td></tr>
+           <tr><td>Bleach</td><td>${process.b.toLocaleString()}</td></tr>
+         </table>
       `)
     });
   }
@@ -931,13 +956,13 @@ if (monthMatch) {
       if(qty>0){
         total+=qty;
         rows += `
-        <tr>
+         <tr>
           <td>${sill}</td>
           <td>${quality}</td>
           <td>${construction}</td>
           <td>${lot.toLocaleString()}</td>
           <td>${qty.toLocaleString()}</td>
-        </tr>`;
+         </tr>`;
       }
     });
 
