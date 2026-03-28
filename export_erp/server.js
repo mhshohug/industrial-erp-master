@@ -883,7 +883,7 @@ router.post("/ask", async (req, res) => {
     
     if (section === "dyeing") {
       return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Dyeing", 
-        '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
+        '<table class="erp-table"><thead> <tr><th style="width:50%">Process</th><th style="width:50%">Yards</th></tr> </thead><tbody>' +
         '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() + '</td></tr>' +
         '<tr><td style="width:50%">Jigger</td><td style="text-align:center; width:50%">' + dyeing.j.toLocaleString() + '</td></tr>' +
         '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + dyeing.ex.toLocaleString() + '</td></tr>' +
@@ -892,7 +892,7 @@ router.post("/ask", async (req, res) => {
     }
     if (section === "process") {
       return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Process", 
-        '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
+        '<table class="erp-table"><thead> <tr><th style="width:50%">Process</th><th style="width:50%">Yards</th></tr> </thead><tbody>' +
         '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() + '</td></tr>' +
         '<tr><td style="width:50%">Mercerise</td><td style="text-align:center; width:50%">' + process.m.toLocaleString() + '</td></tr>' +
         '<tr><td style="width:50%">Bleach</td><td style="text-align:center; width:50%">' + process.b.toLocaleString() + '</td></tr>' +
@@ -942,7 +942,8 @@ router.post("/ask", async (req, res) => {
     
     return res.json({ reply: htmlWrapper(partyName.substring(0, 10) + " - " + proc, 
       '<table class="erp-table"><thead>' +
-      "</table><th style='width:15%'>Sill</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Lot</th><th style='width:25%'>Yards</th><th style='width:25%'>Yards</th> </thead><tbody>" + (rows || '<tr><td colspan="5" style="text-align:center">No data</td></tr>') + '</tbody>' +
+      "<tr><th style='width:15%'>Sill</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Lot</th><th style='width:25%'>Yards</th></tr>" +
+      '</thead><tbody>' + (rows || '<tr><td colspan="5" style="text-align:center">No data</td></tr>') + '</tbody></table>' +
       '<div class="summary-box">Total ' + proc.toUpperCase() + ': ' + total.toLocaleString() + ' yds</div>') });
   }
 
