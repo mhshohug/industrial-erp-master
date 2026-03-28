@@ -349,10 +349,18 @@ function getPartyFullSummary(db, partyName) {
     row[2] && row[2].toLowerCase().includes(searchParty)
   ) || [];
   if (greyRows.length === 0) return null;
+  
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const sillA = parseInt(normalizeSill(a[1])) || 0;
+    const sillB = parseInt(normalizeSill(b[1])) || 0;
+    return sillB - sillA;
+  });
+  
   let reports = [];
   let totalLot = 0;
   let totalDye = 0;
-  greyRows.slice(-30).forEach(row => {
+  
+  sortedRows.slice(0, 100).forEach(row => {
     const sill = normalizeSill(row[1]);
     const quality = row[3] || "N/A";
     const construction = row[4] || "N/A";
@@ -381,11 +389,17 @@ function getPartyConstructionSummary(db, partyName, construction) {
 
   if (greyRows.length === 0) return null;
 
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const sillA = parseInt(normalizeSill(a[1])) || 0;
+    const sillB = parseInt(normalizeSill(b[1])) || 0;
+    return sillB - sillA;
+  });
+
   let reports = [];
   let totalLot = 0;
   let totalDye = 0;
 
-  greyRows.slice(-30).forEach(row => {
+  sortedRows.slice(0, 100).forEach(row => {
     const sill = normalizeSill(row[1]);
     const quality = row[3] || "N/A";
     const constr = row[4] || "N/A";
@@ -434,11 +448,17 @@ function getConstructionSummary(db, construction) {
 
   if (greyRows.length === 0) return null;
 
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const sillA = parseInt(normalizeSill(a[1])) || 0;
+    const sillB = parseInt(normalizeSill(b[1])) || 0;
+    return sillB - sillA;
+  });
+
   let reports = [];
   let totalLot = 0;
   let totalDye = 0;
 
-  greyRows.slice(-30).forEach(row => {
+  sortedRows.slice(0, 100).forEach(row => {
     const sill = normalizeSill(row[1]);
     const party = row[2] || "N/A";
     const quality = row[3] || "N/A";
@@ -550,7 +570,7 @@ router.post("/ask", async (req, res) => {
       rows += '<tr><td style="width:10%">' + r.sill + '</td><td style="width:15%">' + r.quality + '</td><td style="width:15%">' + r.construction + '</td><td style="width:20%">' + r.lot.toLocaleString() + '</td><td style="width:20%">' + r.dyeTotal.toLocaleString() + '</td><td class="' + status + '" style="width:20%">' + statusText + '</td></tr>';
     });
 
-    return htmlWrapper('Party Report - ' + data.reports[0].party, '<div class="info-row">Showing ' + data.reports.length + ' of ' + data.totalCount + ' entries (last 30)</div><table class="erp-table"><thead><tr><th style="width:10%">Sill</th><th style="width:15%">Quali</th><th style="width:15%">Const</th><th style="width:20%">Lot</th><th style="width:20%">Dye</th><th style="width:20%">Status</th></tr></thead><tbody>' + rows + '</tbody></table><div class="summary-box">Lot: ' + data.totalLot.toLocaleString() + ' | Dye: ' + data.totalDye.toLocaleString() + ' | Completion: ' + completion + '%</div>');
+    return htmlWrapper('Party Report - ' + data.reports[0].party, '<div class="info-row">Showing ' + data.reports.length + ' of ' + data.totalCount + ' entries (last 100)</div><table class="erp-table"><thead><tr><th style="width:10%">Sill</th><th style="width:15%">Quali</th><th style="width:15%">Const</th><th style="width:20%">Lot</th><th style="width:20%">Dye</th><th style="width:20%">Status</th></tr></thead><tbody>' + rows + '</tbody></table><div class="summary-box">Lot: ' + data.totalLot.toLocaleString() + ' | Dye: ' + data.totalDye.toLocaleString() + ' | Completion: ' + completion + '%</div>');
   }
 
   function formatPartyConstructionHTML(data, construction) {
@@ -608,7 +628,7 @@ router.post("/ask", async (req, res) => {
     if (constructionData) {
       return res.json({ reply: formatConstructionHTML(constructionData, construction) });
     } else {
-      return res.json({ reply: htmlWrapper('Not Found', '<div style="padding:5px;">❌ No data found for construction "' + construction + '"</div>') });
+      return res.json({ reply: htmlWrapper('Not Found', '<div style="padding:5px;">No data found for construction "' + construction + '"</div>') });
     }
   }
 
@@ -623,7 +643,7 @@ router.post("/ask", async (req, res) => {
     if (partyData) {
       return res.json({ reply: formatPartyConstructionHTML(partyData, construction) });
     } else {
-      return res.json({ reply: htmlWrapper('Not Found', '<div style="padding:5px;">❌ No data found for party "' + partyName + '" with construction "' + construction + '"</div>') });
+      return res.json({ reply: htmlWrapper('Not Found', '<div style="padding:5px;">No data found for party "' + partyName + '" with construction "' + construction + '"</div>') });
     }
   }
 
@@ -659,10 +679,10 @@ router.post("/ask", async (req, res) => {
       const dayTotal = cpb + jigger + ex + napthol;
       totalCPB += cpb; totalJigger += jigger; totalEx += ex; totalNapthol += napthol; overallTotal += dayTotal;
       if(dayTotal > 0) {
-        rowsHtml += '<tr><td style="width:10%">' + String(d).padStart(2,"0") + '</td><td style="width:15%">' + cpb.toLocaleString() + '</td><td style="width:15%">' + jigger.toLocaleString() + '</td><td style="width:15%">' + ex.toLocaleString() + '</td><td style="width:15%">' + napthol.toLocaleString() + '</td><td style="width:15%">' + dayTotal.toLocaleString() + '</td></tr>';
+        rowsHtml += '<td><td style="width:10%">' + String(d).padStart(2,"0") + '得到<td style="width:15%">' + cpb.toLocaleString() + '得到<td style="width:15%">' + jigger.toLocaleString() + '得到<td style="width:15%">' + ex.toLocaleString() + '得到<td style="width:15%">' + napthol.toLocaleString() + '得到<td style="width:15%">' + dayTotal.toLocaleString() + '得到</tr>';
       }
     }
-    return res.json({ reply: htmlWrapper(monthName + ' Daily', '<div class="month-header">' + monthName + ' DAILY DYEING</div><table class="erp-table"><thead><tr><th>Dt</th><th>CPB</th><th>Jig</th><th>Ex</th><th>Nap</th><th>Tot</th></tr></thead><tbody>' + (rowsHtml || '<tr><td colspan="6" style="text-align:center">No data</td></tr>') + '</tbody><tfoot><tr style="background:#e2e8f0;font-weight:bold"><td>Tot</td><td>' + totalCPB.toLocaleString() + '</td><td>' + totalJigger.toLocaleString() + '</td><td>' + totalEx.toLocaleString() + '</td><td>' + totalNapthol.toLocaleString() + '</td><td>' + overallTotal.toLocaleString() + '</td></tr></tfoot></table>') });
+    return res.json({ reply: htmlWrapper(monthName + ' Daily', '<div class="month-header">' + monthName + ' DAILY DYEING</div><table class="erp-table"><thead> <th>Dt</th><th>CPB</th><th>Jig</th><th>Ex</th><th>Nap</th><th>Tot</th> </thead><tbody>' + (rowsHtml || ' <td colspan="6" style="text-align:center">No data</td> ') + '</tbody><tfoot><tr style="background:#e2e8f0;font-weight:bold"><td>Tot</td><td>' + totalCPB.toLocaleString() + '</td><td>' + totalJigger.toLocaleString() + '</td><td>' + totalEx.toLocaleString() + '</td><td>' + totalNapthol.toLocaleString() + '</td><td>' + overallTotal.toLocaleString() + '</td></tr></tfoot>') });
   }
     
   // ================= PER DAY =================
