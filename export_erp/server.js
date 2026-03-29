@@ -664,6 +664,70 @@ function getLotGreySummary(db, lotNumber) {
   
   return { reports, totalCount: greyRows.length };
 }
+
+// ================= NEW PARTY + PROCESS FUNCTIONS =================
+
+function getPartyProcessSummary(db, partyName, processName) {
+  const searchParty = partyName.toLowerCase();
+  const greyRows = db.grey?.slice(1).filter(row =>
+    row[2] && row[2].toLowerCase().includes(searchParty)
+  ) || [];
+  
+  if (greyRows.length === 0) return null;
+  
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const sillA = parseInt(normalizeSill(a[1])) || 0;
+    const sillB = parseInt(normalizeSill(b[1])) || 0;
+    return sillA - sillB;
+  });
+  
+  let reports = [];
+  let totalProcess = 0;
+  
+  sortedRows.slice(-100).forEach(row => {
+    const sill = normalizeSill(row[1]);
+    const quality = row[3] || "N/A";
+    const construction = row[4] || "N/A";
+    const lot = safeNumber(row[5]);
+    
+    let processQty = 0;
+    if (processName === "singing") {
+      processQty = db.singing?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    } else if (processName === "marcerise") {
+      processQty = db.marcerise?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    } else if (processName === "bleach") {
+      processQty = db.bleach?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    } else if (processName === "cpb") {
+      processQty = db.cpb?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    } else if (processName === "jigger") {
+      processQty = db.jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    } else if (processName === "ex_jigger") {
+      processQty = db.ex_jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    } else if (processName === "napthol") {
+      processQty = db.napthol?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    } else if (processName === "dyeing") {
+      const cpb = db.cpb?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+      const jigger = db.jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+      const ex = db.ex_jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+      const napthol = db.napthol?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+      processQty = cpb + jigger + ex + napthol;
+    } else if (processName === "folding") {
+      processQty = db.folding?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    }
+    
+    totalProcess += processQty;
+    
+    reports.push({
+      sill: sill,
+      quality: quality,
+      construction: construction,
+      lot: lot,
+      qty: processQty
+    });
+  });
+  
+  return { reports, totalCount: greyRows.length, totalProcess: totalProcess, processName: processName };
+}
 // =========================================================
 //   ROUTER
 // =========================================================
@@ -694,7 +758,7 @@ router.post("/ask", async (req, res) => {
     }
     return htmlWrapper(proc.toUpperCase() + " Daily", 
       '<table class="erp-table"><thead> <th style="width:30%">Date</th><th style="width:70%">Yards</th> </thead><tbody>' + 
-      (rows || '<td><td colspan="2" style="text-align:center">No data</td></tr>') + 
+      (rows || '<tr><td colspan="2" style="text-align:center">No data</td></tr>') + 
       '</tbody> <div class="summary-box">H:' + data.highest.toLocaleString() + ' L:' + data.lowest.toLocaleString() + ' T:' + data.total.toLocaleString() + '</div>'
     );
   }
@@ -702,14 +766,14 @@ router.post("/ask", async (req, res) => {
   function formatFactorySummaryHTML(data) {
     return htmlWrapper("Factory Summary", 
       '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
-      '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + data.process.s.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Mercerise</td><td style="text-align:center; width:50%">' + data.process.m.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Bleach</td><td style="text-align:center; width:50%">' + data.process.b.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + data.dyeing.c.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Jigger</td><td style="text-align:center; width:50%">' + data.dyeing.j.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + data.dyeing.ex.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Napthol</td><td style="text-align:center; width:50%">' + data.dyeing.n.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Folding</td><td style="text-align:center; width:50%">' + data.folding.toLocaleString() + '</td></tr>' +
+      '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + data.process.s.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">MerceriseNonNullable<td style="text-align:center; width:50%">' + data.process.m.toLocaleString() + 'NonNullable' +
+      '<td><td style="width:50%">BleachNonNullable<td style="text-align:center; width:50%">' + data.process.b.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">CPBNonNullable<td style="text-align:center; width:50%">' + data.dyeing.c.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">JiggerNonNullable<td style="text-align:center; width:50%">' + data.dyeing.j.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">Ex-JiggerNonNullable<td style="text-align:center; width:50%">' + data.dyeing.ex.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">NaptholNonNullable<td style="text-align:center; width:50%">' + data.dyeing.n.toLocaleString() + 'NonNullable' +
+      '<td><td style="width:50%">FoldingNonNullable<td style="text-align:center; width:50%">' + data.folding.toLocaleString() + 'NonNullable' +
       '</tbody> <div class="summary-box">Dye Total: ' + data.dyeTotal.toLocaleString() + '</div>'
     );
   }
@@ -717,14 +781,14 @@ router.post("/ask", async (req, res) => {
   function formatDateReportHTML(data, dateStr) {
     return htmlWrapper("Daily - " + dateStr, 
       '<table class="erp-table"><thead> <th style="width:50%">Section</th><th style="width:50%">Yards</th> </thead><tbody>' +
-      '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + data.process.s.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Mercerise</td><td style="text-align:center; width:50%">' + data.process.m.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Bleach</td><td style="text-align:center; width:50%">' + data.process.b.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + data.dyeing.c.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Jigger</td><td style="text-align:center; width:50%">' + data.dyeing.j.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + data.dyeing.ex.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Napthol</td><td style="text-align:center; width:50%">' + data.dyeing.n.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Folding</td><td style="text-align:center; width:50%">' + data.folding.toLocaleString() + '</td></tr>' +
+      '<td><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + data.process.s.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">MerceriseNonNullable<td style="text-align:center; width:50%">' + data.process.m.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">BleachNonNullable<td style="text-align:center; width:50%">' + data.process.b.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">CPBNonNullable<td style="text-align:center; width:50%">' + data.dyeing.c.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">JiggerNonNullable<td style="text-align:center; width:50%">' + data.dyeing.j.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">Ex-JiggerNonNullable<td style="text-align:center; width:50%">' + data.dyeing.ex.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">NaptholNonNullable<td style="text-align:center; width:50%">' + data.dyeing.n.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">FoldingNonNullable<td style="text-align:center; width:50%">' + data.folding.toLocaleString() + 'NonNullable' +
       '</tbody> <div class="summary-box">Total: ' + data.total.toLocaleString() + '</div>'
     );
   }
@@ -736,20 +800,20 @@ router.post("/ask", async (req, res) => {
     for (let i = 0; i < data.reports.length; i++) {
       const r = data.reports[i];
       rows += "<tr>" +
-        "<td style='text-align:center'>" + r.date + "</td>" +
-        "<td style='text-align:center'>" + r.sill + "</td>" +
-        "<td style='text-align:center'>" + r.party + "</td>" +
-        "<td style='text-align:center'>" + r.sing.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.merc.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.dye.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.constr + "</td>" +
-        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.date + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.sill + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.party + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.sing.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.merc.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.dye.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.constr + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.lot.toLocaleString() + "</td>" +
         "</tr>";
     }
     return htmlWrapper(partyName, 
       '<div class="info-row">Total: ' + data.totalCount + ' | Last: ' + data.reports.length + '</div>' +
       '<table class="erp-table"><thead>' +
-      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Sing</th><th>Merc</th><th>Dye</th><th>Const</th><th>Lot</th></tr>' +
+      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Sing</th><th>Merc</th><th>Dye</th><th>Const</th><th>Lot</th></td>' +
       '</thead><tbody>' + rows + '</tbody></table>'
     );
   }
@@ -759,21 +823,21 @@ router.post("/ask", async (req, res) => {
     for (let i = 0; i < data.reports.length; i++) {
       const r = data.reports[i];
       rows += "<tr>" +
-        "<td style='text-align:center'>" + r.date + "</td>" +
-        "<td style='text-align:center'>" + r.sill + "</td>" +
-        "<td style='text-align:center'>" + r.party + "</td>" +
-        "<td style='text-align:center'>" + r.sing.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.merc.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.dye.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.constr + "</td>" +
-        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
-        "</tr>";
+        "<td style='text-align:center; padding:4px'>" + r.date + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.sill + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.party + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.sing.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.merc.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.dye.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.constr + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.lot.toLocaleString() + "</td>" +
+        "<tr>";
     }
     return htmlWrapper("Const Grey - " + construction, 
       '<div class="info-row">Total: ' + data.totalCount + ' | Last: ' + data.reports.length + '</div>' +
       '<table class="erp-table"><thead>' +
-      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Sing</th><th>Merc</th><th>Dye</th><th>Const</th><th>Lot</th></tr>' +
-      '</thead><tbody>' + rows + '</tbody></table>'
+      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Sing</th><th>Merc</th><th>Dye</th><th>Const</th><th>Lot</th></td>' +
+      '</thead><tbody>' + rows + '</tbody></tr>'
     );
   }
 
@@ -781,15 +845,15 @@ router.post("/ask", async (req, res) => {
     let rows = "";
     for (let i = 0; i < data.reports.length; i++) {
       const r = data.reports[i];
-      rows += "<tr>" +
-        "<td style='text-align:center'>" + r.date + "</td>" +
-        "<td style='text-align:center'>" + r.sill + "</td>" +
-        "<td style='text-align:center'>" + r.party + "</td>" +
-        "<td style='text-align:center'>" + r.sing.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.merc.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.dye.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.constr + "</td>" +
-        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
+      rows += "<td>" +
+        "<td style='text-align:center; padding:4px'>" + r.date + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.sill + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.party + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.sing.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.merc.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.dye.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.constr + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.lot.toLocaleString() + "</td>" +
         "</tr>";
     }
     return htmlWrapper("Sill Grey - " + sillNumber, 
@@ -804,22 +868,22 @@ router.post("/ask", async (req, res) => {
     let rows = "";
     for (let i = 0; i < data.reports.length; i++) {
       const r = data.reports[i];
-      rows += "<tr>" +
-        "<td style='text-align:center'>" + r.date + "</td>" +
-        "<td style='text-align:center'>" + r.sill + "</td>" +
-        "<td style='text-align:center'>" + r.party + "</td>" +
-        "<td style='text-align:center'>" + r.sing.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.merc.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.dye.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.constr + "</td>" +
-        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
+      rows += "<td>" +
+        "<td style='text-align:center; padding:4px'>" + r.date + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.sill + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.party + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.sing.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.merc.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.dye.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.constr + "</td>" +
+        "<td style='text-align:center; padding:4px'>" + r.lot.toLocaleString() + "</td>" +
         "</tr>";
     }
     return htmlWrapper("Lot Grey - " + lotNumber, 
       '<div class="info-row">Total: ' + data.totalCount + '</div>' +
       '<table class="erp-table"><thead>' +
       '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Sing</th><th>Merc</th><th>Dye</th><th>Const</th><th>Lot</th></tr>' +
-      '</thead><tbody>' + rows + '</tbody></table>'
+      '</thead><tbody>' + rows + '</tbody><tr>'
     );
   }
 
@@ -831,12 +895,12 @@ router.post("/ask", async (req, res) => {
       const status = r.lot - r.dyeTotal <= 0 ? "positive" : "negative";
       const statusText = r.lot - r.dyeTotal <= 0 ? "E" : "S";
       rows += "<tr>" +
-        "<td style='text-align:center'>" + r.sill + "</td>" +
-        "<td style='text-align:center'>" + r.quality + "</td>" +
-        "<td style='text-align:center'>" + r.construction + "</td>" +
-        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.dyeTotal.toLocaleString() + "</td>" +
-        "<td class='" + status + "' style='text-align:center'>" + statusText + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.sill + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.quality + "<td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.construction + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.lot.toLocaleString() + "<td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.dyeTotal.toLocaleString() + "<td>" +
+        "<td class='" + status + "' style='text-align:center; padding:6px 4px'>" + statusText + "<td>" +
         "</tr>";
     }
     return htmlWrapper("Party Report - " + data.reports[0].party, 
@@ -856,25 +920,25 @@ router.post("/ask", async (req, res) => {
       const status = r.lot - r.dyeTotal <= 0 ? "positive" : "negative";
       const statusText = r.lot - r.dyeTotal <= 0 ? "E" : "S";
       const diff = Math.abs(r.lot - r.dyeTotal);
-      rows += "<tr>" +
-        "<td style='text-align:center'>" + r.sill + "</td>" +
-        "<td style='text-align:center'>" + r.party.substring(0, 12) + "</td>" +
-        "<td style='text-align:center'>" + r.quality + "</td>" +
-        "<td style='text-align:center'>" + r.construction + "</td>" +
-        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.dyeTotal.toLocaleString() + "</td>" +
-        "<td class='" + status + "' style='text-align:center'>" + statusText + "(" + diff.toLocaleString() + ")</td>" +
+      rows += "<td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.sill + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.party.substring(0, 12) + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.quality + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.construction + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.lot.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.dyeTotal.toLocaleString() + "</td>" +
+        "<td class='" + status + "' style='text-align:center; padding:6px 4px'>" + statusText + "(" + diff.toLocaleString() + ")</td>" +
         "</tr>";
     }
     return htmlWrapper("Party+Const - " + construction, 
       '<div class="info-row">Party: ' + data.reports[0].party + ' | Const: ' + construction + ' | Entries: ' + data.totalCount + '</div>' +
       '<table class="erp-table"><thead>' +
-      '<tr><th>Sill</th><th>Party</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th></tr>' +
+      '<td><th>Sill</th><th>Party</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th></tr>' +
       '</thead><tbody>' + rows + '</tbody>' +
       '<tfoot><tr style="background:#e2e8f0;font-weight:bold">' +
       '<td colspan="4">Total</td><td style="text-align:center">' + data.totalLot.toLocaleString() + '</td><td style="text-align:center">' + data.totalDye.toLocaleString() + '</td>' +
       '<td class="' + (data.totalLot - data.totalDye <= 0 ? "positive" : "negative") + '" style="text-align:center">' + (data.totalLot - data.totalDye).toLocaleString() + '</td>' +
-      '</tr></tfoot></table>' +
+      '</tr></tfoot>' +
       '<div class="summary-box">Comp: ' + completion + '%</div>'
     );
   }
@@ -888,13 +952,13 @@ router.post("/ask", async (req, res) => {
       const statusText = r.lot - r.dyeTotal <= 0 ? "E" : "S";
       const diff = Math.abs(r.lot - r.dyeTotal);
       rows += "<tr>" +
-        "<td style='text-align:center'>" + r.sill + "</td>" +
-        "<td style='text-align:center'>" + r.party.substring(0, 12) + "</td>" +
-        "<td style='text-align:center'>" + r.quality + "</td>" +
-        "<td style='text-align:center'>" + r.construction + "</td>" +
-        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.dyeTotal.toLocaleString() + "</td>" +
-        "<td class='" + status + "' style='text-align:center'>" + statusText + "(" + diff.toLocaleString() + ")</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.sill + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.party.substring(0, 12) + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.quality + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.construction + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.lot.toLocaleString() + "<td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.dyeTotal.toLocaleString() + "</td>" +
+        "<td class='" + status + "' style='text-align:center; padding:6px 4px'>" + statusText + "(" + diff.toLocaleString() + ")</td>" +
         "</tr>";
     }
     return htmlWrapper("Const Report - " + construction, 
@@ -905,7 +969,7 @@ router.post("/ask", async (req, res) => {
       '<tfoot><tr style="background:#e2e8f0;font-weight:bold">' +
       '<td colspan="4">Total</td><td style="text-align:center">' + data.totalLot.toLocaleString() + '</td><td style="text-align:center">' + data.totalDye.toLocaleString() + '</td>' +
       '<td class="' + (data.totalLot - data.totalDye <= 0 ? "positive" : "negative") + '" style="text-align:center">' + (data.totalLot - data.totalDye).toLocaleString() + '</td>' +
-      '</tr></tfoot></table>' +
+      '</tr></tfoot>' +
       '<div class="summary-box">Comp: ' + completion + '%</div>'
     );
   }
@@ -918,14 +982,14 @@ router.post("/ask", async (req, res) => {
       const statusText = r.diff <= 0 ? "E" : "S";
       output += '<div class="info-row"><b>S' + r.sill + '</b> ' + r.party + ' ' + r.quality + ' ' + r.construction + ' L:' + r.lot.toLocaleString() + '</div>' +
         '<table class="erp-table">' +
-        '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + r.process.s.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Mercerise</td><td style="text-align:center; width:50%">' + r.process.m.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Bleach</td><td style="text-align:center; width:50%">' + r.process.b.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + r.dyeing.c.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Jigger</td><td style="text-align:center; width:50%">' + r.dyeing.j.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + r.dyeing.ex.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Napthol</td><td style="text-align:center; width:50%">' + r.dyeing.n.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Folding</td><td style="text-align:center; width:50%">' + r.folding.toLocaleString() + '</td></tr>' +
+        '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + r.process.s.toLocaleString() + 'NonNullable' +
+        '<td><td style="width:50%">MerceriseNonNullable<td style="text-align:center; width:50%">' + r.process.m.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">BleachNonNullable<td style="text-align:center; width:50%">' + r.process.b.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">CPBNonNullable<td style="text-align:center; width:50%">' + r.dyeing.c.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">JiggerNonNullable<td style="text-align:center; width:50%">' + r.dyeing.j.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">Ex-JiggerNonNullable<td style="text-align:center; width:50%">' + r.dyeing.ex.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">NaptholNonNullable<td style="text-align:center; width:50%">' + r.dyeing.n.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">FoldingNonNullable<td style="text-align:center; width:50%">' + r.folding.toLocaleString() + 'NonNullable' +
         '</table>' +
         '<div class="summary-box ' + statusClass + '">Dye:' + r.dyeTotal.toLocaleString() + ' | ' + statusText + ' ' + Math.abs(r.diff).toLocaleString() + '</div>' + 
         (i < reports.length - 1 ? '<div style="margin:5px 0;"></div>' : "");
@@ -936,14 +1000,14 @@ router.post("/ask", async (req, res) => {
   function formatMonthSummaryHTML(monthName, process, dyeing, folding, dyeTotal) {
     return htmlWrapper(monthName + " Summary", 
       '<table class="erp-table">' +
-      '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Mercerise</td><td style="text-align:center; width:50%">' + process.m.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Bleach</td><td style="text-align:center; width:50%">' + process.b.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Jigger</td><td style="text-align:center; width:50%">' + dyeing.j.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + dyeing.ex.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Napthol</td><td style="text-align:center; width:50%">' + dyeing.n.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Folding</td><td style="text-align:center; width:50%">' + folding.toLocaleString() + '</td></tr>' +
+      '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">MerceriseNonNullable<td style="text-align:center; width:50%">' + process.m.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">BleachNonNullable<td style="text-align:center; width:50%">' + process.b.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">CPBNonNullable<td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">JiggerNonNullable<td style="text-align:center; width:50%">' + dyeing.j.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">Ex-JiggerNonNullable<td style="text-align:center; width:50%">' + dyeing.ex.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">NaptholNonNullable<td style="text-align:center; width:50%">' + dyeing.n.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">FoldingNonNullable<td style="text-align:center; width:50%">' + folding.toLocaleString() + 'NonNullable' +
       '</table><div class="summary-box">Dye Total: ' + dyeTotal.toLocaleString() + '</div>'
     );
   }
@@ -952,15 +1016,47 @@ router.post("/ask", async (req, res) => {
     const total = c + j + ex + n;
     return htmlWrapper("Total Dyeing", 
       '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
-      '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + c.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Jigger</td><td style="text-align:center; width:50%">' + j.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + ex.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Napthol</td><td style="text-align:center; width:50%">' + n.toLocaleString() + '</td></tr>' +
+      '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + c.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">JiggerNonNullable<td style="text-align:center; width:50%">' + j.toLocaleString() + 'NonNullable' +
+      '<td><td style="width:50%">Ex-JiggerNonNullable<td style="text-align:center; width:50%">' + ex.toLocaleString() + 'NonNullable' +
+      '<tr><td style="width:50%">NaptholNonNullable<td style="text-align:center; width:50%">' + n.toLocaleString() + 'NonNullable' +
       '</tbody> <div class="summary-box">Total: ' + total.toLocaleString() + '</div>'
     );
   }
 
-  // ================= NEW GREY SEARCHES =================
+  function formatPartyProcessHTML(data, partyName) {
+    let rows = "";
+    for (let i = 0; i < data.reports.length; i++) {
+      const r = data.reports[i];
+      rows += "<td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.sill + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.quality + "<td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.construction + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.lot.toLocaleString() + "</td>" +
+        "<td style='text-align:center; padding:6px 4px'>" + r.qty.toLocaleString() + "</td>" +
+        "</tr>";
+    }
+    
+    let processDisplayName = "";
+    if (data.processName === "singing") processDisplayName = "SINGING";
+    else if (data.processName === "marcerise") processDisplayName = "MERCERISE";
+    else if (data.processName === "bleach") processDisplayName = "BLEACH";
+    else if (data.processName === "cpb") processDisplayName = "CPB";
+    else if (data.processName === "jigger") processDisplayName = "JIGGER";
+    else if (data.processName === "ex_jigger") processDisplayName = "EX-JIGGER";
+    else if (data.processName === "napthol") processDisplayName = "NAPTHOL";
+    else if (data.processName === "dyeing") processDisplayName = "DYEING";
+    else if (data.processName === "folding") processDisplayName = "FOLDING";
+    
+    return htmlWrapper(partyName + " - " + processDisplayName, 
+      '<div class="info-row">Showing ' + data.reports.length + ' of ' + data.totalCount + ' entries (last 100)</div>' +
+      '<table class="erp-table"><thead>' +
+      '<tr><th>Sill</th><th>Quali</th><th>Const</th><th>Lot</th><th>' + processDisplayName + '</th></tr>' +
+      '</thead><tbody>' + rows + '</tbody></table>' +
+      '<div class="summary-box">Total ' + processDisplayName + ': ' + data.totalProcess.toLocaleString() + ' yds</div>'
+    );
+  }
+    // ================= NEW GREY SEARCHES =================
   
   const partyGreyMatch = question.match(/^(.+?)\s+grey$/);
   if (partyGreyMatch) {
@@ -1007,6 +1103,20 @@ router.post("/ask", async (req, res) => {
     }
   }
 
+  // ================= PARTY + PROCESS SEARCH (NEW) =================
+  const partyProcessNewMatch = question.match(/^(.+?)\s+(singing|marcerise|bleach|cpb|jigger|ex_jigger|napthol|dyeing|folding)$/);
+  if (partyProcessNewMatch) {
+    const partyName = partyProcessNewMatch[1].trim();
+    let processName = partyProcessNewMatch[2].trim().toLowerCase();
+    if (processName === "ex_jigger") processName = "ex_jigger";
+    const processData = getPartyProcessSummary(db, partyName, processName);
+    if (processData && processData.reports.length > 0) {
+      return res.json({ reply: formatPartyProcessHTML(processData, partyName) });
+    } else {
+      return res.json({ reply: htmlWrapper("Not Found", '<div style="padding:5px;">No data found for party "' + partyName + '" with process "' + processName + '"</div>') });
+    }
+  }
+
   // ================= ONLY CONSTRUCTION SEARCH =================
   const onlyConstructionMatch = question.match(/^(\d{1,3}[x*×\/]\d{1,3}(?:\/\d{1,3}[x*×\/]\d{1,3})?)$/i);
   if (onlyConstructionMatch) {
@@ -1036,7 +1146,7 @@ router.post("/ask", async (req, res) => {
 
   // ================= HELP =================
   if (cleanInput === "help") {
-    return res.json({ reply: htmlWrapper("Commands", '<div style="padding:5px;">• cpb per day<br>• total dyeing<br>• totall<br>• 15 feb<br>• 15 feb cpb<br>• 12345 (lot)<br>• party name<br>• party name construction (e.g., noor 50x50)<br>• construction only (e.g., 50x50, 50*50, 50/50)<br>• feb per day dyeing<br><br>--- GREY COMMANDS ---<br>• party grey (e.g., noor grey)<br>• construction grey (e.g., 50x50 grey)<br>• sill grey (e.g., 624 grey)<br>• lot grey (e.g., 20109 grey)</div>') });
+    return res.json({ reply: htmlWrapper("Commands", '<div style="padding:5px;">• cpb per day<br>• total dyeing<br>• totall<br>• 15 feb<br>• 15 feb cpb<br>• 12345 (lot)<br>• party name<br>• party name construction (e.g., noor 50x50)<br>• construction only (e.g., 50x50, 50*50, 50/50)<br>• feb per day dyeing<br><br>--- PARTY + PROCESS ---<br>• party singing (e.g., noor singing)<br>• party marcerise (e.g., noor marcerise)<br>• party dyeing (e.g., noor dyeing)<br>• party cpb, jigger, ex_jigger, napthol, folding<br><br>--- GREY COMMANDS ---<br>• party grey (e.g., noor grey)<br>• construction grey (e.g., 50x50 grey)<br>• sill grey (e.g., 624 grey)<br>• lot grey (e.g., 20109 grey)</div>') });
   }
 
   // ================= MONTH PER DAY DYEING =================
@@ -1086,7 +1196,7 @@ router.post("/ask", async (req, res) => {
     return res.json({ reply: htmlWrapper(monthName + " Daily", 
       '<div class="month-header">' + monthName + ' DAILY DYEING</div>' +
       '<table class="erp-table"><thead>' +
-      "<tr><th style='width:10%'>Dt</th><th style='width:18%'>CPB</th><th style='width:18%'>Jig</th><th style='width:18%'>Ex</th><th style='width:18%'>Nap</th><th style='width:18%'>Tot</th></tr>" +
+      "<td><th style='width:10%'>Dt</th><th style='width:18%'>CPB</th><th style='width:18%'>Jig</th><th style='width:18%'>Ex</th><th style='width:18%'>Nap</th><th style='width:18%'>Tot</th></tr>" +
       '</thead><tbody>' + (rowsHtml || '<tr><td colspan="6" style="text-align:center">No data</td></tr>') + '</tbody>' +
       '<tfoot><tr style="background:#e2e8f0;font-weight:bold">' +
       '<td style="text-align:center">Tot</td>' +
@@ -1095,7 +1205,7 @@ router.post("/ask", async (req, res) => {
       '<td style="text-align:center">' + totalEx.toLocaleString() + '</td>' +
       '<td style="text-align:center">' + totalNapthol.toLocaleString() + '</td>' +
       '<td style="text-align:center">' + overallTotal.toLocaleString() + '</td>' +
-      '</tr></tfoot></table>') });
+      '</tr></tfoot></tr>') });
   }
     
   // ================= PER DAY =================
@@ -1149,7 +1259,7 @@ router.post("/ask", async (req, res) => {
     for (let i = 0; i < entries.length; i++) {
       const sill = entries[i][0];
       const data = entries[i][1];
-      tableRows += "<td>" +
+      tableRows += "<tr>" +
         "<td style='text-align:center'>" + sill + "</td>" +
         "<td style='text-align:center'>" + data.party.substring(0, 8) + "</td>" +
         "<td style='text-align:center'>" + data.quality + "</td>" +
@@ -1166,7 +1276,7 @@ router.post("/ask", async (req, res) => {
     return res.json({ reply: htmlWrapper(proc.toUpperCase() + " " + dateObj.getDate() + " " + dateObj.toLocaleString("default", {month:"short"}), 
       '<table class="erp-table"><thead>' +
       "<tr><th style='width:15%'>Sill</th><th style='width:25%'>Party</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Yds</th></td>" +
-      '</thead><tbody>' + tableRows + '</tbody></tr>' +
+      '</thead><tbody>' + tableRows + '</tbody></td>' +
       '<div class="summary-box">Total: ' + total.toLocaleString() + '</div>') });
   }
 
@@ -1177,48 +1287,48 @@ router.post("/ask", async (req, res) => {
   }
 
   // ================= MONTH SMART SUMMARY =================
-const monthMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*(process|dyeing|folding|totall|total|report|full|summary)?$/);
-if (monthMatch) {
-  const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
-  const selectedMonthIndex = months[monthMatch[1]];
-  const section = monthMatch[2] || "full";
-  const year = new Date().getFullYear();
-  
-  function getMonthSum(sheet) {
-    return db[sheet]?.slice(1).reduce((t, row) => {
-      const d = parseSheetDate(row[0]);
-      if (d && d.getMonth() === selectedMonthIndex && d.getFullYear() === year) return t + safeNumber(row[6]);
-      return t;
-    }, 0) || 0;
+  const monthMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*(process|dyeing|folding|totall|total|report|full|summary)?$/);
+  if (monthMatch) {
+    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    const selectedMonthIndex = months[monthMatch[1]];
+    const section = monthMatch[2] || "full";
+    const year = new Date().getFullYear();
+    
+    function getMonthSum(sheet) {
+      return db[sheet]?.slice(1).reduce((t, row) => {
+        const d = parseSheetDate(row[0]);
+        if (d && d.getMonth() === selectedMonthIndex && d.getFullYear() === year) return t + safeNumber(row[6]);
+        return t;
+      }, 0) || 0;
+    }
+    
+    const process = { s: getMonthSum("singing"), m: getMonthSum("marcerise"), b: getMonthSum("bleach") };
+    const dyeing = { c: getMonthSum("cpb"), j: getMonthSum("jigger"), ex: getMonthSum("ex_jigger"), n: getMonthSum("napthol") };
+    const folding = getMonthSum("folding");
+    const dyeTotal = dyeing.c + dyeing.j + dyeing.ex + dyeing.n;
+    
+    if (section === "dyeing") {
+      return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Dyeing", 
+        '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
+        '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">JiggerNonNullable<td style="text-align:center; width:50%">' + dyeing.j.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">Ex-JiggerNonNullable<td style="text-align:center; width:50%">' + dyeing.ex.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">NaptholNonNullable<td style="text-align:center; width:50%">' + dyeing.n.toLocaleString() + 'NonNullable' +
+        '</tbody> <div class="summary-box">Total: ' + dyeTotal.toLocaleString() + '</div>') });
+    }
+    if (section === "process") {
+      return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Process", 
+        '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
+        '<td><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">MerceriseNonNullable<td style="text-align:center; width:50%">' + process.m.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">BleachNonNullable<td style="text-align:center; width:50%">' + process.b.toLocaleString() + 'NonNullable' +
+        '</tbody> </div>') });
+    }
+    if (section === "folding") {
+      return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Folding", '<div class="summary-box">Folding: ' + folding.toLocaleString() + '</div>') });
+    }
+    return res.json({ reply: formatMonthSummaryHTML(monthMatch[1].toUpperCase(), process, dyeing, folding, dyeTotal) });
   }
-  
-  const process = { s: getMonthSum("singing"), m: getMonthSum("marcerise"), b: getMonthSum("bleach") };
-  const dyeing = { c: getMonthSum("cpb"), j: getMonthSum("jigger"), ex: getMonthSum("ex_jigger"), n: getMonthSum("napthol") };
-  const folding = getMonthSum("folding");
-  const dyeTotal = dyeing.c + dyeing.j + dyeing.ex + dyeing.n;
-  
-  if (section === "dyeing") {
-    return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Dyeing", 
-      '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
-      '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Jigger</td><td style="text-align:center; width:50%">' + dyeing.j.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + dyeing.ex.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Napthol</td><td style="text-align:center; width:50%">' + dyeing.n.toLocaleString() + '</td></tr>' +
-      '</tbody> <div class="summary-box">Total: ' + dyeTotal.toLocaleString() + '</div>') });
-  }
-  if (section === "process") {
-    return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Process", 
-      '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
-      '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Mercerise</td><td style="text-align:center; width:50%">' + process.m.toLocaleString() + '</td></tr>' +
-      '<tr><td style="width:50%">Bleach</td><td style="text-align:center; width:50%">' + process.b.toLocaleString() + '</td></tr>' +
-      '</tbody> </div>') });
-  }
-  if (section === "folding") {
-    return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Folding", '<div class="summary-box">Folding: ' + folding.toLocaleString() + '</div>') });
-  }
-  return res.json({ reply: formatMonthSummaryHTML(monthMatch[1].toUpperCase(), process, dyeing, folding, dyeTotal) });
-}
 
   // ================= SILL SEARCH =================
   const numMatch = question.match(/(\d{3,})/);
@@ -1227,7 +1337,7 @@ if (monthMatch) {
     if (reports) return res.json({ reply: formatSillReportHTML(reports) });
   }
 
-  // ================= PARTY + PROCESS =================
+  // ================= PARTY + PROCESS (OLD) =================
   const partyProcessMatch = question.match(/^(.+)\s+(cpb|jigger|exjigger|ex-jigger|napthol|singing|marcerise|bleach|folding)$/);
   if (partyProcessMatch) {
     const partyName = partyProcessMatch[1].trim();
@@ -1246,7 +1356,7 @@ if (monthMatch) {
       const qty = db[proc]?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
       if (qty > 0) {
         total += qty;
-        rows += "<td>" +
+        rows += "<tr>" +
           "<td style='text-align:center'>" + sill + "</td>" +
           "<td style='text-align:center'>" + quality + "</td>" +
           "<td style='text-align:center'>" + construction + "</td>" +
@@ -1259,7 +1369,7 @@ if (monthMatch) {
     return res.json({ reply: htmlWrapper(partyName.substring(0, 10) + " - " + proc, 
       '<table class="erp-table"><thead>' +
       "<tr><th style='width:15%'>Sill</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Lot</th><th style='width:25%'>Yards</th></tr>" +
-      '</thead><tbody>' + (rows || '<tr><td colspan="5" style="text-align:center">No data</td></tr>') + '</tbody></td>' +
+      '</thead><tbody>' + (rows || '<tr><td colspan="5" style="text-align:center">No data</td></tr>') + '</tbody><tr>' +
       '<div class="summary-box">Total ' + proc.toUpperCase() + ': ' + total.toLocaleString() + ' yds</div>') });
   }
 
