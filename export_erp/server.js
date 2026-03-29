@@ -171,6 +171,11 @@ function parseSheetDate(raw) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function formatDateForDisplay(date) {
+  if (!date) return "N/A";
+  return date.getDate() + "-" + (date.getMonth() + 1) + "-" + date.getFullYear();
+}
+
 function sameDate(d1,d2){
   return d1 && d2 &&
     d1.getDate() === d2.getDate() &&
@@ -313,6 +318,126 @@ function getDateReport(db, targetDate) {
     folding: f,
     total: s + m + b + c + j + ex + n
   };
+}
+
+// ================= NEW GREY SEARCH FUNCTIONS =================
+
+function getPartyGreySummary(db, partyName) {
+  const searchParty = partyName.toLowerCase();
+  const greyRows = db.grey?.slice(1).filter(row =>
+    row[2] && row[2].toLowerCase().includes(searchParty)
+  ) || [];
+  
+  if (greyRows.length === 0) return null;
+  
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const dateA = parseSheetDate(a[0]);
+    const dateB = parseSheetDate(b[0]);
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateB - dateA;
+  });
+  
+  const reports = sortedRows.slice(-100).map(row => ({
+    date: parseSheetDate(row[0]),
+    sill: normalizeSill(row[1]),
+    party: row[2] || "N/A",
+    quality: row[3] || "N/A",
+    construction: row[4] || "N/A",
+    lot: safeNumber(row[5])
+  }));
+  
+  return { reports, totalCount: greyRows.length };
+}
+
+function getConstructionGreySummary(db, construction) {
+  const searchConstruction = normalizeConstruction(construction);
+  const greyRows = db.grey?.slice(1).filter(row => {
+    if (!row[4]) return false;
+    const dbConstruction = normalizeConstruction(row[4]);
+    return dbConstruction.includes(searchConstruction);
+  }) || [];
+  
+  if (greyRows.length === 0) return null;
+  
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const dateA = parseSheetDate(a[0]);
+    const dateB = parseSheetDate(b[0]);
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateB - dateA;
+  });
+  
+  const reports = sortedRows.slice(-100).map(row => ({
+    date: parseSheetDate(row[0]),
+    sill: normalizeSill(row[1]),
+    party: row[2] || "N/A",
+    quality: row[3] || "N/A",
+    construction: row[4] || "N/A",
+    lot: safeNumber(row[5])
+  }));
+  
+  return { reports, totalCount: greyRows.length };
+}
+
+function getSillGreySummary(db, sillNumber) {
+  const searchSill = normalizeSill(sillNumber);
+  const greyRows = db.grey?.slice(1).filter(row =>
+    normalizeSill(row[1]) === searchSill
+  ) || [];
+  
+  if (greyRows.length === 0) return null;
+  
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const dateA = parseSheetDate(a[0]);
+    const dateB = parseSheetDate(b[0]);
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateB - dateA;
+  });
+  
+  const reports = sortedRows.map(row => ({
+    date: parseSheetDate(row[0]),
+    sill: normalizeSill(row[1]),
+    party: row[2] || "N/A",
+    quality: row[3] || "N/A",
+    construction: row[4] || "N/A",
+    lot: safeNumber(row[5])
+  }));
+  
+  return { reports, totalCount: greyRows.length };
+}
+
+function getLotGreySummary(db, lotNumber) {
+  const searchLot = normalizeSill(lotNumber);
+  const greyRows = db.grey?.slice(1).filter(row =>
+    normalizeSill(row[5]) === searchLot
+  ) || [];
+  
+  if (greyRows.length === 0) return null;
+  
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const dateA = parseSheetDate(a[0]);
+    const dateB = parseSheetDate(b[0]);
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateB - dateA;
+  });
+  
+  const reports = sortedRows.map(row => ({
+    date: parseSheetDate(row[0]),
+    sill: normalizeSill(row[1]),
+    party: row[2] || "N/A",
+    quality: row[3] || "N/A",
+    construction: row[4] || "N/A",
+    lot: safeNumber(row[5])
+  }));
+  
+  return { reports, totalCount: greyRows.length };
 }
 
 function getPartyFullSummary(db, partyName) {
@@ -551,6 +676,92 @@ router.post("/ask", async (req, res) => {
     );
   }
 
+  // ================= NEW GREY REPORT FORMATTERS =================
+
+  function formatPartyGreyHTML(data, partyName) {
+    let rows = "";
+    for (let i = 0; i < data.reports.length; i++) {
+      const r = data.reports[i];
+      rows += "<tr>" +
+        "<td style='text-align:center'>" + formatDateForDisplay(r.date) + "</td>" +
+        "<td style='text-align:center'>" + r.sill + "</td>" +
+        "<td style='text-align:center'>" + r.party + "</td>" +
+        "<td style='text-align:center'>" + r.quality + "</td>" +
+        "<td style='text-align:center'>" + r.construction + "</td>" +
+        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
+        "</tr>";
+    }
+    return htmlWrapper("Party Grey - " + partyName, 
+      '<div class="info-row">Total Entries: ' + data.totalCount + ' | Showing last ' + data.reports.length + '</div>' +
+      '<table class="erp-table"><thead>' +
+      '<th>Date</th><th>Sill</th><th>Party</th><th>Quality</th><th>Const</th><th>Lot</th>' +
+      '</thead><tbody>' + rows + '</tbody></table>'
+    );
+  }
+
+  function formatConstructionGreyHTML(data, construction) {
+    let rows = "";
+    for (let i = 0; i < data.reports.length; i++) {
+      const r = data.reports[i];
+      rows += "<tr>" +
+        "<td style='text-align:center'>" + formatDateForDisplay(r.date) + "</td>" +
+        "<td style='text-align:center'>" + r.sill + "</td>" +
+        "<td style='text-align:center'>" + r.party + "</td>" +
+        "<td style='text-align:center'>" + r.quality + "</td>" +
+        "<td style='text-align:center'>" + r.construction + "</td>" +
+        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
+        "</tr>";
+    }
+    return htmlWrapper("Const Grey - " + construction, 
+      '<div class="info-row">Total Entries: ' + data.totalCount + ' | Showing last ' + data.reports.length + '</div>' +
+      '<table class="erp-table"><thead>' +
+      '<th>Date</th><th>Sill</th><th>Party</th><th>Quality</th><th>Const</th><th>Lot</th>' +
+      '</thead><tbody>' + rows + '</tbody></table>'
+    );
+  }
+
+  function formatSillGreyHTML(data, sillNumber) {
+    let rows = "";
+    for (let i = 0; i < data.reports.length; i++) {
+      const r = data.reports[i];
+      rows += "<tr>" +
+        "<td style='text-align:center'>" + formatDateForDisplay(r.date) + "</td>" +
+        "<td style='text-align:center'>" + r.sill + "</td>" +
+        "<td style='text-align:center'>" + r.party + "</td>" +
+        "<td style='text-align:center'>" + r.quality + "</td>" +
+        "<td style='text-align:center'>" + r.construction + "</td>" +
+        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
+        "</tr>";
+    }
+    return htmlWrapper("Sill Grey - " + sillNumber, 
+      '<div class="info-row">Total Entries: ' + data.totalCount + '</div>' +
+      '<table class="erp-table"><thead>' +
+      '<th>Date</th><th>Sill</th><th>Party</th><th>Quality</th><th>Const</th><th>Lot</th>' +
+      '</thead><tbody>' + rows + '</tbody></table>'
+    );
+  }
+
+  function formatLotGreyHTML(data, lotNumber) {
+    let rows = "";
+    for (let i = 0; i < data.reports.length; i++) {
+      const r = data.reports[i];
+      rows += "<tr>" +
+        "<td style='text-align:center'>" + formatDateForDisplay(r.date) + "</td>" +
+        "<td style='text-align:center'>" + r.sill + "</td>" +
+        "<td style='text-align:center'>" + r.party + "</td>" +
+        "<td style='text-align:center'>" + r.quality + "</td>" +
+        "<td style='text-align:center'>" + r.construction + "</td>" +
+        "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
+        "</tr>";
+    }
+    return htmlWrapper("Lot Grey - " + lotNumber, 
+      '<div class="info-row">Total Entries: ' + data.totalCount + '</div>' +
+      '<table class="erp-table"><thead>' +
+      '<th>Date</th><th>Sill</th><th>Party</th><th>Quality</th><th>Const</th><th>Lot</th>' +
+      '</thead><tbody>' + rows + '</tbody></table>'
+    );
+  }
+
   function formatPartySummaryHTML(data) {
     const completion = data.totalLot > 0 ? ((data.totalDye / data.totalLot) * 100).toFixed(1) : 0;
     let rows = "";
@@ -570,7 +781,7 @@ router.post("/ask", async (req, res) => {
     return htmlWrapper("Party Report - " + data.reports[0].party, 
       '<div class="info-row">Showing ' + data.reports.length + ' of ' + data.totalCount + ' entries (last 100)</div>' +
       '<table class="erp-table"><thead>' +
-      '<tr><th>Sill</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th></tr>' +
+      '<th>Sill</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th>' +
       '</thead><tbody>' + rows + '</tbody></table>' +
       '<div class="summary-box">Lot: ' + data.totalLot.toLocaleString() + ' | Dye: ' + data.totalDye.toLocaleString() + ' | Comp: ' + completion + '%</div>'
     );
@@ -597,7 +808,7 @@ router.post("/ask", async (req, res) => {
     return htmlWrapper("Party+Const - " + construction, 
       '<div class="info-row"><b>Party:</b> ' + data.reports[0].party + ' | <b>Const:</b> ' + construction + ' | <b>Entries:</b> ' + data.totalCount + '</div>' +
       '<table class="erp-table"><thead>' +
-      '<tr><th>Sill</th><th>Party</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th></tr>' +
+      '<th>Sill</th><th>Party</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th>' +
       '</thead><tbody>' + rows + '</tbody>' +
       '<tfoot><tr style="background:#e2e8f0;font-weight:bold">' +
       '<td colspan="4">Total</td>' +
@@ -630,7 +841,7 @@ router.post("/ask", async (req, res) => {
     return htmlWrapper("Const Report - " + construction, 
       '<div class="info-row"><b>Const:</b> ' + construction + ' | <b>Entries:</b> ' + data.totalCount + '</div>' +
       '<table class="erp-table"><thead>' +
-      '<tr><th>Sill</th><th>Party</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th></tr>' +
+      '<th>Sill</th><th>Party</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th>' +
       '</thead><tbody>' + rows + '</tbody>' +
       '<tfoot><tr style="background:#e2e8f0;font-weight:bold">' +
       '<td colspan="4">Total</td>' +
@@ -691,7 +902,58 @@ router.post("/ask", async (req, res) => {
       '</tbody></table><div class="summary-box">Total: ' + total.toLocaleString() + '</div>'
     );
   }
-    // ================= ONLY CONSTRUCTION SEARCH =================
+    // ================= NEW GREY SEARCHES =================
+  
+  // Check for Party + Grey (e.g., "noor grey")
+  const partyGreyMatch = question.match(/^(.+?)\s+grey$/);
+  if (partyGreyMatch) {
+    const partyName = partyGreyMatch[1].trim();
+    const greyData = getPartyGreySummary(db, partyName);
+    if (greyData && greyData.reports.length > 0) {
+      return res.json({ reply: formatPartyGreyHTML(greyData, partyName) });
+    } else {
+      return res.json({ reply: htmlWrapper("Not Found", '<div style="padding:5px;">No grey data found for party "' + partyName + '"</div>') });
+    }
+  }
+  
+  // Check for Construction + Grey (e.g., "50x50 grey")
+  const constructionGreyMatch = question.match(/^(\d{1,3}[x*×\/]\d{1,3}(?:\/\d{1,3}[x*×\/]\d{1,3})?)\s+grey$/);
+  if (constructionGreyMatch) {
+    let construction = constructionGreyMatch[1].trim();
+    construction = normalizeConstruction(construction);
+    const greyData = getConstructionGreySummary(db, construction);
+    if (greyData && greyData.reports.length > 0) {
+      return res.json({ reply: formatConstructionGreyHTML(greyData, construction) });
+    } else {
+      return res.json({ reply: htmlWrapper("Not Found", '<div style="padding:5px;">No grey data found for construction "' + construction + '"</div>') });
+    }
+  }
+  
+  // Check for Sill + Grey (e.g., "624 grey")
+  const sillGreyMatch = question.match(/^(\d{3,})\s+grey$/);
+  if (sillGreyMatch) {
+    const sillNumber = sillGreyMatch[1].trim();
+    const greyData = getSillGreySummary(db, sillNumber);
+    if (greyData && greyData.reports.length > 0) {
+      return res.json({ reply: formatSillGreyHTML(greyData, sillNumber) });
+    } else {
+      return res.json({ reply: htmlWrapper("Not Found", '<div style="padding:5px;">No grey data found for sill "' + sillNumber + '"</div>') });
+    }
+  }
+  
+  // Check for Lot + Grey (e.g., "20109 grey")
+  const lotGreyMatch = question.match(/^(\d{3,})\s+grey$/);
+  if (lotGreyMatch && !sillGreyMatch) {
+    const lotNumber = lotGreyMatch[1].trim();
+    const greyData = getLotGreySummary(db, lotNumber);
+    if (greyData && greyData.reports.length > 0) {
+      return res.json({ reply: formatLotGreyHTML(greyData, lotNumber) });
+    } else {
+      return res.json({ reply: htmlWrapper("Not Found", '<div style="padding:5px;">No grey data found for lot "' + lotNumber + '"</div>') });
+    }
+  }
+
+  // ================= ONLY CONSTRUCTION SEARCH =================
   const onlyConstructionMatch = question.match(/^(\d{1,3}[x*×\/]\d{1,3}(?:\/\d{1,3}[x*×\/]\d{1,3})?)$/i);
   if (onlyConstructionMatch) {
     let construction = onlyConstructionMatch[1].trim();
@@ -720,7 +982,7 @@ router.post("/ask", async (req, res) => {
 
   // ================= HELP =================
   if (cleanInput === "help") {
-    return res.json({ reply: htmlWrapper("Commands", '<div style="padding:5px;">• cpb per day<br>• total dyeing<br>• totall<br>• 15 feb<br>• 15 feb cpb<br>• 12345 (lot)<br>• party name<br>• party name construction (e.g., noor 50x50)<br>• construction only (e.g., 50x50, 50*50, 50/50)<br>• feb per day dyeing</div>') });
+    return res.json({ reply: htmlWrapper("Commands", '<div style="padding:5px;">• cpb per day<br>• total dyeing<br>• totall<br>• 15 feb<br>• 15 feb cpb<br>• 12345 (lot)<br>• party name<br>• party name construction (e.g., noor 50x50)<br>• construction only (e.g., 50x50, 50*50, 50/50)<br>• feb per day dyeing<br><br>--- GREY COMMANDS ---<br>• party grey (e.g., noor grey)<br>• construction grey (e.g., 50x50 grey)<br>• sill grey (e.g., 624 grey)<br>• lot grey (e.g., 20109 grey)</div>') });
   }
 
   // ================= MONTH PER DAY DYEING =================
