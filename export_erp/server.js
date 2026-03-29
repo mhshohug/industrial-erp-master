@@ -1023,39 +1023,46 @@ router.post("/ask", async (req, res) => {
       '</tbody> <div class="summary-box">Total: ' + total.toLocaleString() + '</div>'
     );
   }
-
-  function formatPartyProcessHTML(data, partyName) {
-    let rows = "";
-    for (let i = 0; i < data.reports.length; i++) {
-      const r = data.reports[i];
-      rows += "<td>" +
-        "<td style='text-align:center; padding:6px 4px'>" + r.sill + "</td>" +
-        "<td style='text-align:center; padding:6px 4px'>" + r.quality + "<td>" +
-        "<td style='text-align:center; padding:6px 4px'>" + r.construction + "</td>" +
-        "<td style='text-align:center; padding:6px 4px'>" + r.lot.toLocaleString() + "</td>" +
-        "<td style='text-align:center; padding:6px 4px'>" + r.qty.toLocaleString() + "</td>" +
-        "</tr>";
-    }
-    
-    let processDisplayName = "";
-    if (data.processName === "singing") processDisplayName = "SINGING";
-    else if (data.processName === "marcerise") processDisplayName = "MERCERISE";
-    else if (data.processName === "bleach") processDisplayName = "BLEACH";
-    else if (data.processName === "cpb") processDisplayName = "CPB";
-    else if (data.processName === "jigger") processDisplayName = "JIGGER";
-    else if (data.processName === "ex_jigger") processDisplayName = "EX-JIGGER";
-    else if (data.processName === "napthol") processDisplayName = "NAPTHOL";
-    else if (data.processName === "dyeing") processDisplayName = "DYEING";
-    else if (data.processName === "folding") processDisplayName = "FOLDING";
-    
-    return htmlWrapper(partyName + " - " + processDisplayName, 
-      '<div class="info-row">Showing ' + data.reports.length + ' of ' + data.totalCount + ' entries (last 100)</div>' +
-      '<table class="erp-table"><thead>' +
-      '<tr><th>Sill</th><th>Quali</th><th>Const</th><th>Lot</th><th>' + processDisplayName + '</th></tr>' +
-      '</thead><tbody>' + rows + '</tbody></table>' +
-      '<div class="summary-box">Total ' + processDisplayName + ': ' + data.totalProcess.toLocaleString() + ' yds</div>'
-    );
+function formatPartyProcessHTML(data, partyName) {
+  let rows = "";
+  for (let i = 0; i < data.reports.length; i++) {
+    const r = data.reports[i];
+    rows += "<tr>" +
+      "<td style='text-align:center; padding:8px 6px; border:1px solid #cbd5e0'>" + r.sill + "</td>" +
+      "<td style='text-align:center; padding:8px 6px; border:1px solid #cbd5e0'>" + (r.quality || "N/A") + "</td>" +
+      "<td style='text-align:center; padding:8px 6px; border:1px solid #cbd5e0'>" + (r.construction || "N/A") + "</td>" +
+      "<td style='text-align:center; padding:8px 6px; border:1px solid #cbd5e0'>" + r.lot.toLocaleString() + "</td>" +
+      "<td style='text-align:center; padding:8px 6px; border:1px solid #cbd5e0'>" + r.qty.toLocaleString() + "</td>" +
+      "</tr>";
   }
+  
+  let processDisplayName = "";
+  if (data.processName === "singing") processDisplayName = "SINGING";
+  else if (data.processName === "marcerise") processDisplayName = "MERCERISE";
+  else if (data.processName === "bleach") processDisplayName = "BLEACH";
+  else if (data.processName === "cpb") processDisplayName = "CPB";
+  else if (data.processName === "jigger") processDisplayName = "JIGGER";
+  else if (data.processName === "ex_jigger") processDisplayName = "EX-JIGGER";
+  else if (data.processName === "napthol") processDisplayName = "NAPTHOL";
+  else if (data.processName === "dyeing") processDisplayName = "DYEING";
+  else if (data.processName === "folding") processDisplayName = "FOLDING";
+  
+  return htmlWrapper(partyName + " - " + processDisplayName, 
+    '<div class="info-row" style="background:#f0f4f8; padding:8px; margin-bottom:10px; border-radius:4px; text-align:center">Showing ' + data.reports.length + ' of ' + data.totalCount + ' entries (last 100)</div>' +
+    '<table class="erp-table" style="width:100%; border-collapse:collapse; font-size:12px">' +
+    '<thead>' +
+    '<tr><th style="background:#2d3748; color:white; padding:10px 6px; text-align:center; border:1px solid #1a202c">Sill</th>' +
+    '<th style="background:#2d3748; color:white; padding:10px 6px; text-align:center; border:1px solid #1a202c">Quali</th>' +
+    '<th style="background:#2d3748; color:white; padding:10px 6px; text-align:center; border:1px solid #1a202c">Const</th>' +
+    '<th style="background:#2d3748; color:white; padding:10px 6px; text-align:center; border:1px solid #1a202c">Lot</th>' +
+    '<th style="background:#2d3748; color:white; padding:10px 6px; text-align:center; border:1px solid #1a202c">' + processDisplayName + '</th>' +
+    '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '</table>' +
+    '<div class="summary-box" style="background:#edf2f7; padding:8px; margin-top:10px; border-radius:4px; border-left:3px solid #2d3748; text-align:center; font-weight:bold">Total ' + processDisplayName + ': ' + data.totalProcess.toLocaleString() + ' yds</div>'
+  );
+}
+  
     // ================= NEW GREY SEARCHES =================
   
   const partyGreyMatch = question.match(/^(.+?)\s+grey$/);
