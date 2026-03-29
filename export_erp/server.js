@@ -1303,47 +1303,47 @@ router.post("/ask", async (req, res) => {
 
   // ================= MONTH SMART SUMMARY =================
   const monthMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*(process|dyeing|folding|totall|total|report|full|summary)?$/);
-  if (monthMatch) {
-    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
-    const selectedMonthIndex = months[monthMatch[1]];
-    const section = monthMatch[2] || "full";
-    const year = new Date().getFullYear();
-    
-    function getMonthSum(sheet) {
-      return db[sheet]?.slice(1).reduce((t, row) => {
-        const d = parseSheetDate(row[0]);
-        if (d && d.getMonth() === selectedMonthIndex && d.getFullYear() === year) return t + safeNumber(row[6]);
-        return t;
-      }, 0) || 0;
-    }
-    
-    const process = { s: getMonthSum("singing"), m: getMonthSum("marcerise"), b: getMonthSum("bleach") };
-    const dyeing = { c: getMonthSum("cpb"), j: getMonthSum("jigger"), ex: getMonthSum("ex_jigger"), n: getMonthSum("napthol") };
-    const folding = getMonthSum("folding");
-    const dyeTotal = dyeing.c + dyeing.j + dyeing.ex + dyeing.n;
-    
-    if (section === "dyeing") {
-      return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Dyeing", 
-        '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
-        '<td><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() + 'NonNullable' +
-        '<tr><td style="width:50%">JiggerNonNullable<td style="text-align:center; width:50%">' + dyeing.j.toLocaleString() + 'NonNullable' +
-        '<tr><td style="width:50%">Ex-JiggerNonNullable<td style="text-align:center; width:50%">' + dyeing.ex.toLocaleString() + 'NonNullable' +
-        '<tr><td style="width:50%">NaptholNonNullable<td style="text-align:center; width:50%">' + dyeing.n.toLocaleString() + 'NonNullable' +
-        '</tbody> <div class="summary-box">Total: ' + dyeTotal.toLocaleString() + '</div>') });
-    }
-    if (section === "process") {
-      return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Process", 
-        '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
-        '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() + 'NonNullable' +
-        '<tr><td style="width:50%">MerceriseNonNullable<td style="text-align:center; width:50%">' + process.m.toLocaleString() + 'NonNullable' +
-        '<tr><td style="width:50%">BleachNonNullable<td style="text-align:center; width:50%">' + process.b.toLocaleString() + 'NonNullable' +
-        '</tbody> </div>') });
-    }
-    if (section === "folding") {
-      return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Folding", '<div class="summary-box">Folding: ' + folding.toLocaleString() + '</div>') });
-    }
-    return res.json({ reply: formatMonthSummaryHTML(monthMatch[1].toUpperCase(), process, dyeing, folding, dyeTotal) });
+if (monthMatch) {
+  const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  const selectedMonthIndex = months[monthMatch[1]];
+  const section = monthMatch[2] || "full";
+  const year = new Date().getFullYear();
+  
+  function getMonthSum(sheet) {
+    return db[sheet]?.slice(1).reduce((t, row) => {
+      const d = parseSheetDate(row[0]);
+      if (d && d.getMonth() === selectedMonthIndex && d.getFullYear() === year) return t + safeNumber(row[6]);
+      return t;
+    }, 0) || 0;
   }
+  
+  const process = { s: getMonthSum("singing"), m: getMonthSum("marcerise"), b: getMonthSum("bleach") };
+  const dyeing = { c: getMonthSum("cpb"), j: getMonthSum("jigger"), ex: getMonthSum("ex_jigger"), n: getMonthSum("napthol") };
+  const folding = getMonthSum("folding");
+  const dyeTotal = dyeing.c + dyeing.j + dyeing.ex + dyeing.n;
+  
+  if (section === "dyeing") {
+    return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Dyeing", 
+      '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
+      '<td><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() +
+      '<tr><td style="width:50%">Jigger<td style="text-align:center; width:50%">' + dyeing.j.toLocaleString() +
+      '<tr><td style="width:50%">Ex-Jigger<td style="text-align:center; width:50%">' + dyeing.ex.toLocaleString() +
+      '<tr><td style="width:50%">Napthol<td style="text-align:center; width:50%">' + dyeing.n.toLocaleString() +
+      '</tbody> <div class="summary-box">Total: ' + dyeTotal.toLocaleString() + '</div>') });
+  }
+  if (section === "process") {
+    return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Process", 
+      '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
+      '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() +
+      '<tr><td style="width:50%">Mercerise<td style="text-align:center; width:50%">' + process.m.toLocaleString() +
+      '<tr><td style="width:50%">Bleach<td style="text-align:center; width:50%">' + process.b.toLocaleString() +
+      '</tbody> </div>') });
+  }
+  if (section === "folding") {
+    return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Folding", '<div class="summary-box">Folding: ' + folding.toLocaleString() + '</div>') });
+  }
+  return res.json({ reply: formatMonthSummaryHTML(monthMatch[1].toUpperCase(), process, dyeing, folding, dyeTotal) });
+}
 
   // ================= SILL SEARCH =================
   const numMatch = question.match(/(\d{3,})/);
