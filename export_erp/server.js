@@ -1059,7 +1059,7 @@ router.post("/ask", async (req, res) => {
       '<div class="summary-box" style="background:#edf2f7; padding:8px; margin-top:10px; border-radius:4px; border-left:3px solid #2d3748; text-align:center; font-weight:bold">Total ' + processDisplayName + ': ' + data.totalProcess.toLocaleString() + ' yds</div>'
     );
   }
-    // ================= MONTH PER DAY DYEING (FIRST - MOST SPECIFIC) =================
+     // ================= MONTH PER DAY DYEING =================
   const monthPerDayDyeingMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+dyeing$/);
   if (monthPerDayDyeingMatch) {
     const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
@@ -1107,7 +1107,7 @@ router.post("/ask", async (req, res) => {
       '<div class="month-header">' + monthName + ' DAILY DYEING</div>' +
       '<table class="erp-table"><thead>' +
       "<tr><th style='width:10%'>Dt</th><th style='width:18%'>CPB</th><th style='width:18%'>Jig</th><th style='width:18%'>Ex</th><th style='width:18%'>Nap</th><th style='width:18%'>Tot</th></tr>" +
-      '</thead><tbody>' + (rowsHtml || '<tr><td colspan="6" style="text-align:center">No data</td></tr>') + '</tbody>' +
+      '</thead><tbody>' + (rowsHtml || '<td><td colspan="6" style="text-align:center">No data</td></tr>') + '</tbody>' +
       '<tfoot><tr style="background:#e2e8f0;font-weight:bold">' +
       '<td style="text-align:center">Tot</td>' +
       '<td style="text-align:center">' + totalCPB.toLocaleString() + '</td>' +
@@ -1117,7 +1117,7 @@ router.post("/ask", async (req, res) => {
       '<td style="text-align:center">' + overallTotal.toLocaleString() + '</td>' +
       '</tr></tfoot></table>') });
   }
-
+    
   // ================= PER DAY =================
   const perDayMatch = question.match(/(cpb|jigger|ex-jigger|exjigger|napthol|singing|marcerise|bleach|folding)\s*per\s*day/);
   if (perDayMatch) {
@@ -1139,6 +1139,67 @@ router.post("/ask", async (req, res) => {
   if (cleanInput === "totall") {
     const data = getFactoryTotals(db);
     return res.json({ reply: formatFactorySummaryHTML(data) });
+  }
+
+  // ================= DATE + PROCESS (FIXED) =================
+  // First, try to match date like "1 feb" or "15 mar"
+  const dateProcessMatch = question.match(/^(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(cpb|jigger|ex_jigger|napthol|singing|marcerise|bleach|folding)$/);
+  if (dateProcessMatch) {
+    const day = parseInt(dateProcessMatch[1]);
+    const monthName = dateProcessMatch[2];
+    const procRaw = dateProcessMatch[3];
+    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    const month = months[monthName];
+    const year = new Date().getFullYear();
+    const targetDate = new Date(year, month, day);
+    
+    let proc = procRaw;
+    if (proc === "ex_jigger") proc = "ex_jigger";
+    
+    const rows = db[proc]?.slice(1).filter(row => {
+      const rowDate = parseSheetDate(row[0]);
+      return rowDate && sameDate(rowDate, targetDate);
+    }) || [];
+    
+    if (rows.length === 0) return res.json({ reply: htmlWrapper("No Data", "No production on this date for " + proc) });
+    
+    const combined = {};
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const sill = normalizeSill(row[1]);
+      const qty = safeNumber(row[6]);
+      if (!combined[sill]) {
+        const greyRow = db.grey?.slice(1).find(g => normalizeSill(g[1]) === sill);
+        combined[sill] = { party: greyRow?.[2] || "N/A", quality: greyRow?.[3] || "N/A", construction: greyRow?.[4] || "N/A", qty: 0 };
+      }
+      combined[sill].qty += qty;
+    }
+    
+    let tableRows = "";
+    const entries = Object.entries(combined);
+    for (let i = 0; i < entries.length; i++) {
+      const sill = entries[i][0];
+      const data = entries[i][1];
+      tableRows += "<tr>" +
+        "<td style='text-align:center'>" + sill + "</td>" +
+        "<td style='text-align:center'>" + data.party.substring(0, 8) + "</td>" +
+        "<td style='text-align:center'>" + data.quality + "</td>" +
+        "<td style='text-align:center'>" + data.construction + "</td>" +
+        "<td style='text-align:center'>" + data.qty.toLocaleString() + "</td>" +
+        "</tr>";
+    }
+    
+    let total = 0;
+    for (let i = 0; i < rows.length; i++) {
+      total += safeNumber(rows[i][6]);
+    }
+    
+    const procDisplay = proc.toUpperCase();
+    return res.json({ reply: htmlWrapper(procDisplay + " " + day + " " + monthName, 
+      '<table class="erp-table"><thead>' +
+      "<tr><th style='width:15%'>Sill</th><th style='width:25%'>Party</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Yds</th></tr>" +
+      '</thead><tbody>' + tableRows + '</tbody><table>' +
+      '<div class="summary-box">Total: ' + total.toLocaleString() + '</div>') });
   }
 
   // ================= NEW GREY SEARCHES =================
@@ -1230,59 +1291,11 @@ router.post("/ask", async (req, res) => {
 
   // ================= HELP =================
   if (cleanInput === "help") {
-    return res.json({ reply: htmlWrapper("Commands", '<div style="padding:5px;">• cpb per day<br>• total dyeing<br>• totall<br>• 15 feb<br>• 15 feb cpb<br>• 12345 (lot)<br>• party name<br>• party name construction (e.g., noor 50x50)<br>• construction only (e.g., 50x50, 50*50, 50/50)<br>• feb per day dyeing<br><br>--- PARTY + PROCESS ---<br>• party singing (e.g., noor singing)<br>• party marcerise (e.g., noor marcerise)<br>• party dyeing (e.g., noor dyeing)<br><br>--- GREY COMMANDS ---<br>• party grey (e.g., noor grey)<br>• construction grey (e.g., 50x50 grey)<br>• sill grey (e.g., 624 grey)<br>• lot grey (e.g., 20109 grey)</div>') });
-  }
-
-  // ================= DATE + PROCESS =================
-  const dateObj = getKeywordDate(question);
-  const procMatch = question.match(/(cpb|jigger|exjigger|ex-jigger|napthol|singing|marcerise|bleach|folding)/);
-  if (dateObj && procMatch) {
-    const proc = procMatch[1].replace("exjigger", "ex_jigger").replace("ex-jigger", "ex_jigger");
-    const rows = db[proc]?.slice(1).filter(row => {
-      const rowDate = parseSheetDate(row[0]);
-      return rowDate && sameDate(rowDate, dateObj);
-    }) || [];
-    if (rows.length === 0) return res.json({ reply: htmlWrapper("No Data", "No production on this date.") });
-    
-    const combined = {};
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const sill = normalizeSill(row[1]);
-      const qty = safeNumber(row[6]);
-      if (!combined[sill]) {
-        const greyRow = db.grey?.slice(1).find(g => normalizeSill(g[1]) === sill);
-        combined[sill] = { party: greyRow?.[2] || "N/A", quality: greyRow?.[3] || "N/A", construction: greyRow?.[4] || "N/A", qty: 0 };
-      }
-      combined[sill].qty += qty;
-    }
-    
-    let tableRows = "";
-    const entries = Object.entries(combined);
-    for (let i = 0; i < entries.length; i++) {
-      const sill = entries[i][0];
-      const data = entries[i][1];
-      tableRows += "<tr>" +
-        "<td style='text-align:center'>" + sill + "</td>" +
-        "<td style='text-align:center'>" + data.party.substring(0, 8) + "</td>" +
-        "<td style='text-align:center'>" + data.quality + "</td>" +
-        "<td style='text-align:center'>" + data.construction + "</td>" +
-        "<td style='text-align:center'>" + data.qty.toLocaleString() + "</td>" +
-        "</tr>";
-    }
-    
-    let total = 0;
-    for (let i = 0; i < rows.length; i++) {
-      total += safeNumber(rows[i][6]);
-    }
-    
-    return res.json({ reply: htmlWrapper(proc.toUpperCase() + " " + dateObj.getDate() + " " + dateObj.toLocaleString("default", {month:"short"}), 
-      '<table class="erp-table"><thead>' +
-      "<td><th style='width:15%'>Sill</th><th style='width:25%'>Party</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Yds</th></tr>" +
-      '</thead><tbody>' + tableRows + '</tbody></tr>' +
-      '<div class="summary-box">Total: ' + total.toLocaleString() + '</div>') });
+    return res.json({ reply: htmlWrapper("Commands", '<div style="padding:5px;">• cpb per day<br>• total dyeing<br>• totall<br>• 1 feb cpb<br>• 15 feb jigger<br>• 12345 (lot)<br>• party name<br>• party name construction (e.g., noor 50x50)<br>• construction only (e.g., 50x50)<br>• feb per day dyeing<br><br>--- PARTY + PROCESS ---<br>• party singing<br>• party marcerise<br>• party dyeing<br><br>--- GREY COMMANDS ---<br>• party grey<br>• construction grey<br>• sill grey<br>• lot grey</div>') });
   }
 
   // ================= DATE ONLY =================
+  const dateObj = getKeywordDate(question);
   if (dateObj) {
     const data = getDateReport(db, dateObj);
     return res.json({ reply: formatDateReportHTML(data, dateObj.getDate() + " " + dateObj.toLocaleString("default", {month:"short"})) });
@@ -1312,16 +1325,16 @@ router.post("/ask", async (req, res) => {
     if (section === "dyeing") {
       return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Dyeing", 
         '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
-        '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() + 'NonNullable' +
+        '<td><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() + 'NonNullable' +
         '<tr><td style="width:50%">JiggerNonNullable<td style="text-align:center; width:50%">' + dyeing.j.toLocaleString() + 'NonNullable' +
         '<tr><td style="width:50%">Ex-JiggerNonNullable<td style="text-align:center; width:50%">' + dyeing.ex.toLocaleString() + 'NonNullable' +
-        '</td><td style="width:50%">NaptholNonNullable<td style="text-align:center; width:50%">' + dyeing.n.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">NaptholNonNullable<td style="text-align:center; width:50%">' + dyeing.n.toLocaleString() + 'NonNullable' +
         '</tbody> <div class="summary-box">Total: ' + dyeTotal.toLocaleString() + '</div>') });
     }
     if (section === "process") {
       return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Process", 
         '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
-        '<td><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() + 'NonNullable' +
         '<tr><td style="width:50%">MerceriseNonNullable<td style="text-align:center; width:50%">' + process.m.toLocaleString() + 'NonNullable' +
         '<tr><td style="width:50%">BleachNonNullable<td style="text-align:center; width:50%">' + process.b.toLocaleString() + 'NonNullable' +
         '</tbody> </div>') });
@@ -1358,11 +1371,11 @@ router.post("/ask", async (req, res) => {
       const qty = db[proc]?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
       if (qty > 0) {
         total += qty;
-        rows += "<td>" +
+        rows += "<tr>" +
           "<td style='text-align:center'>" + sill + "</td>" +
-          "<td style='text-align:center'>" + quality + "</td>" +
-          "<td style='text-align:center'>" + construction + "</td>" +
-          "<td style='text-align:center'>" + lot.toLocaleString() + "</td>" +
+          "<td style='text-align:center'>" + quality + "<td>" +
+          "<td style='text-align:center'>" + construction + "<td>" +
+          "<td style='text-align:center'>" + lot.toLocaleString() + "<td>" +
           "<td style='text-align:center'>" + qty.toLocaleString() + "</td>" +
           "</tr>";
       }
@@ -1370,7 +1383,7 @@ router.post("/ask", async (req, res) => {
     
     return res.json({ reply: htmlWrapper(partyName.substring(0, 10) + " - " + proc, 
       '<table class="erp-table"><thead>' +
-      "<td><th style='width:15%'>Sill</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Lot</th><th style='width:25%'>Yards</th></tr>" +
+      "<tr><th style='width:15%'>Sill</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Lot</th><th style='width:25%'>Yards</th></tr>" +
       '</thead><tbody>' + (rows || '<tr><td colspan="5" style="text-align:center">No data</td></tr>') + '</tbody><tr>' +
       '<div class="summary-box">Total ' + proc.toUpperCase() + ': ' + total.toLocaleString() + ' yds</div>') });
   }
