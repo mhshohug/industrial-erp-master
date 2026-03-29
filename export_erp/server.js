@@ -1117,7 +1117,7 @@ router.post("/ask", async (req, res) => {
       '<td style="text-align:center">' + overallTotal.toLocaleString() + '</td>' +
       '</tr></tfoot></table>') });
   }
-  }  // <-- এইটা monthPerDayDyeingMatch এর শেষ বন্ধনী
+//<-- এইটা monthPerDayDyeingMatch এর শেষ বন্ধনী
 
 // ================= মাস + প্রসেস (NEW) =================
 const monthProcessMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(dyeing|singing|marcerise|bleach|cpb|jigger|ex_jigger|napthol|folding)$/);
