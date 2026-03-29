@@ -1117,7 +1117,81 @@ router.post("/ask", async (req, res) => {
       '<td style="text-align:center">' + overallTotal.toLocaleString() + '</td>' +
       '</tr></tfoot></table>') });
   }
+  }  // <-- এইটা monthPerDayDyeingMatch এর শেষ বন্ধনী
+
+// ================= মাস + প্রসেস (NEW) =================
+const monthProcessMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(dyeing|singing|marcerise|bleach|cpb|jigger|ex_jigger|napthol|folding)$/);
+if (monthProcessMatch) {
+  const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  const selectedMonthIndex = months[monthProcessMatch[1]];
+  const monthName = monthProcessMatch[1].toUpperCase();
+  const processType = monthProcessMatch[2].toLowerCase();
+  const year = new Date().getFullYear();
+  
+  if (processType === "dyeing") {
+    function getMonthSum(sheet) {
+      return db[sheet]?.slice(1).reduce((t, row) => {
+        const d = parseSheetDate(row[0]);
+        if (d && d.getMonth() === selectedMonthIndex && d.getFullYear() === year) {
+          return t + safeNumber(row[6]);
+        }
+        return t;
+      }, 0) || 0;
+    }
     
+    const cpb = getMonthSum("cpb");
+    const jigger = getMonthSum("jigger");
+    const ex = getMonthSum("ex_jigger");
+    const napthol = getMonthSum("napthol");
+    const total = cpb + jigger + ex + napthol;
+    
+    return res.json({ reply: htmlWrapper(monthName + " " + processType.toUpperCase(), 
+      '<table class="erp-table"><thead><th style="width:50%">Process</th><th style="width:50%">Yards</th></thead><tbody>' +
+      '<tr><td style="width:50%">CPB</td><td style="text-align:center">' + cpb.toLocaleString() + '</td></tr>' +
+      '<tr><td style="width:50%">Jigger</td><td style="text-align:center">' + jigger.toLocaleString() + '</td></tr>' +
+      '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center">' + ex.toLocaleString() + '</td></tr>' +
+      '<tr><td style="width:50%">Napthol</td><td style="text-align:center">' + napthol.toLocaleString() + '</td></tr>' +
+      '</tbody><div class="summary-box">Total Dyeing: ' + total.toLocaleString() + '</div>') });
+  }
+  
+  else {
+    let sheetName = processType;
+    if (processType === "ex_jigger") sheetName = "ex_jigger";
+    
+    const total = db[sheetName]?.slice(1).reduce((t, row) => {
+      const d = parseSheetDate(row[0]);
+      if (d && d.getMonth() === selectedMonthIndex && d.getFullYear() === year) {
+        return t + safeNumber(row[6]);
+      }
+      return t;
+    }, 0) || 0;
+    
+    const daysInMonth = new Date(year, selectedMonthIndex + 1, 0).getDate();
+    let rowsHtml = "";
+    
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayTotal = db[sheetName]?.slice(1).reduce((t, row) => {
+        const rowDate = parseSheetDate(row[0]);
+        if (rowDate && rowDate.getFullYear() === year && 
+            rowDate.getMonth() === selectedMonthIndex && 
+            rowDate.getDate() === d) {
+          return t + safeNumber(row[6]);
+        }
+        return t;
+      }, 0) || 0;
+      
+      if (dayTotal > 0) {
+        rowsHtml += `<tr><td style="text-align:center">${String(d).padStart(2, "0")}</td><td style="text-align:center">${dayTotal.toLocaleString()}</td></tr>`;
+      }
+    }
+    
+    return res.json({ reply: htmlWrapper(monthName + " " + processType.toUpperCase(), 
+      '<div class="info-row">Total: ' + total.toLocaleString() + ' yards</div>' +
+      '<table class="erp-table"><thead><th style="width:30%">Date</th><th style="width:70%">Yards</th></thead><tbody>' +
+      (rowsHtml || '<tr><td colspan="2" style="text-align:center">No data</td></tr>') +
+      '</tbody></table>') });
+  }
+}  
   // ================= PER DAY =================
   const perDayMatch = question.match(/(cpb|jigger|ex-jigger|exjigger|napthol|singing|marcerise|bleach|folding)\s*per\s*day/);
   if (perDayMatch) {
