@@ -173,11 +173,10 @@ function parseSheetDate(raw) {
 
 function formatDateForDisplay(date) {
   if (!date) return "N/A";
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const day = String(date.getDate()).padStart(2, "0");
-  const month = months[date.getMonth()];
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = String(date.getFullYear()).slice(-2);
-  return day + "-" + month + "-" + year;
+  return day + "/" + month + "/" + year;
 }
 
 function sameDate(d1,d2){
@@ -255,7 +254,6 @@ async function fetchMergedSheet(sheetName) {
   
   return mergedData;
 }
-
 // =========================================================
 //   CALCULATION ENGINE
 // =========================================================
@@ -322,154 +320,6 @@ function getDateReport(db, targetDate) {
     folding: f,
     total: s + m + b + c + j + ex + n
   };
-}
-
-// ================= NEW GREY SEARCH FUNCTIONS =================
-
-function getPartyGreySummary(db, partyName) {
-  const searchParty = partyName.toLowerCase();
-  const greyRows = db.grey?.slice(1).filter(row =>
-    row[2] && row[2].toLowerCase().includes(searchParty)
-  ) || [];
-  
-  if (greyRows.length === 0) return null;
-  
-  const sortedRows = [...greyRows].sort((a, b) => {
-    const dateA = parseSheetDate(a[0]);
-    const dateB = parseSheetDate(b[0]);
-    if (!dateA && !dateB) return 0;
-    if (!dateA) return 1;
-    if (!dateB) return -1;
-    return dateB - dateA;
-  });
-  
-  const reports = sortedRows.slice(-100).map(row => {
-    const sill = normalizeSill(row[1]);
-    const singingQty = db.singing?.slice(1).reduce((total, r) => {
-      return normalizeSill(r[1]) === sill ? total + safeNumber(r[6]) : total;
-    }, 0) || 0;
-    
-    return {
-      date: parseSheetDate(row[0]),
-      sill: sill,
-      party: row[2] || "N/A",
-      singing: singingQty,
-      construction: row[4] || "N/A",
-      lot: safeNumber(row[5])
-    };
-  });
-  
-  return { reports, totalCount: greyRows.length };
-}
-
-function getConstructionGreySummary(db, construction) {
-  const searchConstruction = normalizeConstruction(construction);
-  const greyRows = db.grey?.slice(1).filter(row => {
-    if (!row[4]) return false;
-    const dbConstruction = normalizeConstruction(row[4]);
-    return dbConstruction.includes(searchConstruction);
-  }) || [];
-  
-  if (greyRows.length === 0) return null;
-  
-  const sortedRows = [...greyRows].sort((a, b) => {
-    const dateA = parseSheetDate(a[0]);
-    const dateB = parseSheetDate(b[0]);
-    if (!dateA && !dateB) return 0;
-    if (!dateA) return 1;
-    if (!dateB) return -1;
-    return dateB - dateA;
-  });
-  
-  const reports = sortedRows.slice(-100).map(row => {
-    const sill = normalizeSill(row[1]);
-    const singingQty = db.singing?.slice(1).reduce((total, r) => {
-      return normalizeSill(r[1]) === sill ? total + safeNumber(r[6]) : total;
-    }, 0) || 0;
-    
-    return {
-      date: parseSheetDate(row[0]),
-      sill: sill,
-      party: row[2] || "N/A",
-      singing: singingQty,
-      construction: row[4] || "N/A",
-      lot: safeNumber(row[5])
-    };
-  });
-  
-  return { reports, totalCount: greyRows.length };
-}
-
-function getSillGreySummary(db, sillNumber) {
-  const searchSill = normalizeSill(sillNumber);
-  const greyRows = db.grey?.slice(1).filter(row =>
-    normalizeSill(row[1]) === searchSill
-  ) || [];
-  
-  if (greyRows.length === 0) return null;
-  
-  const sortedRows = [...greyRows].sort((a, b) => {
-    const dateA = parseSheetDate(a[0]);
-    const dateB = parseSheetDate(b[0]);
-    if (!dateA && !dateB) return 0;
-    if (!dateA) return 1;
-    if (!dateB) return -1;
-    return dateB - dateA;
-  });
-  
-  const reports = sortedRows.map(row => {
-    const sill = normalizeSill(row[1]);
-    const singingQty = db.singing?.slice(1).reduce((total, r) => {
-      return normalizeSill(r[1]) === sill ? total + safeNumber(r[6]) : total;
-    }, 0) || 0;
-    
-    return {
-      date: parseSheetDate(row[0]),
-      sill: sill,
-      party: row[2] || "N/A",
-      singing: singingQty,
-      construction: row[4] || "N/A",
-      lot: safeNumber(row[5])
-    };
-  });
-  
-  return { reports, totalCount: greyRows.length };
-}
-
-function getLotGreySummary(db, lotNumber) {
-  const searchLot = normalizeSill(lotNumber);
-  const greyRows = db.grey?.slice(1).filter(row =>
-    normalizeSill(row[5]) === searchLot
-  ) || [];
-  
-  if (greyRows.length === 0) return null;
-  
-  const sortedRows = [...greyRows].sort((a, b) => {
-    const dateA = parseSheetDate(a[0]);
-    const dateB = parseSheetDate(b[0]);
-    if (!dateA && !dateB) return 0;
-    if (!dateA) return 1;
-    if (!dateB) return -1;
-    return dateB - dateA;
-  });
-  
-  const reports = sortedRows.map(row => {
-    const sill = normalizeSill(row[1]);
-    const singingQty = db.singing?.slice(1).reduce((total, r) => {
-      return normalizeSill(r[1]) === sill ? total + safeNumber(r[6]) : total;
-    }, 0) || 0;
-    
-    return {
-      date: parseSheetDate(row[0]),
-      sill: sill,
-      party: row[2] || "N/A",
-      singing: singingQty,
-      construction: row[4] || "N/A",
-      lot: safeNumber(row[5])
-    };
-  });
-  
-  return { reports, totalCount: greyRows.length };
 }
 
 function getPartyFullSummary(db, partyName) {
@@ -643,6 +493,177 @@ function getSillReport(db, inputNumber) {
     return { party, sill, quality, construction, lot, process: { s, m, b }, dyeing: { c, j, ex, n }, folding: f, dyeTotal, diff };
   });
 }
+// ================= NEW GREY SEARCH FUNCTIONS =================
+
+function getPartyGreySummary(db, partyName) {
+  const searchParty = partyName.toLowerCase();
+  const greyRows = db.grey?.slice(1).filter(row =>
+    row[2] && row[2].toLowerCase().includes(searchParty)
+  ) || [];
+  
+  if (greyRows.length === 0) return null;
+  
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const dateA = parseSheetDate(a[0]);
+    const dateB = parseSheetDate(b[0]);
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateA - dateB;
+  });
+  
+  const reports = sortedRows.slice(-100).map(row => {
+    const sill = normalizeSill(row[1]);
+    const sing = db.singing?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const merc = db.marcerise?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const cpb = db.cpb?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const jig = db.jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const ex = db.ex_jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const nap = db.napthol?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const dye = cpb + jig + ex + nap;
+    
+    return {
+      date: formatDateForDisplay(parseSheetDate(row[0])),
+      sill: sill,
+      party: (row[2] || "N/A").substring(0, 4),
+      sing: sing,
+      merc: merc,
+      dye: dye,
+      constr: (row[4] || "N/A").substring(0, 5),
+      lot: safeNumber(row[5])
+    };
+  });
+  
+  return { reports, totalCount: greyRows.length };
+}
+
+function getConstructionGreySummary(db, construction) {
+  const searchConstruction = normalizeConstruction(construction);
+  const greyRows = db.grey?.slice(1).filter(row => {
+    if (!row[4]) return false;
+    const dbConstruction = normalizeConstruction(row[4]);
+    return dbConstruction.includes(searchConstruction);
+  }) || [];
+  
+  if (greyRows.length === 0) return null;
+  
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const dateA = parseSheetDate(a[0]);
+    const dateB = parseSheetDate(b[0]);
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateA - dateB;
+  });
+  
+  const reports = sortedRows.slice(-100).map(row => {
+    const sill = normalizeSill(row[1]);
+    const sing = db.singing?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const merc = db.marcerise?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const cpb = db.cpb?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const jig = db.jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const ex = db.ex_jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const nap = db.napthol?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const dye = cpb + jig + ex + nap;
+    
+    return {
+      date: formatDateForDisplay(parseSheetDate(row[0])),
+      sill: sill,
+      party: (row[2] || "N/A").substring(0, 4),
+      sing: sing,
+      merc: merc,
+      dye: dye,
+      constr: (row[4] || "N/A").substring(0, 5),
+      lot: safeNumber(row[5])
+    };
+  });
+  
+  return { reports, totalCount: greyRows.length };
+}
+
+function getSillGreySummary(db, sillNumber) {
+  const searchSill = normalizeSill(sillNumber);
+  const greyRows = db.grey?.slice(1).filter(row =>
+    normalizeSill(row[1]) === searchSill
+  ) || [];
+  
+  if (greyRows.length === 0) return null;
+  
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const dateA = parseSheetDate(a[0]);
+    const dateB = parseSheetDate(b[0]);
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateA - dateB;
+  });
+  
+  const reports = sortedRows.map(row => {
+    const sill = normalizeSill(row[1]);
+    const sing = db.singing?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const merc = db.marcerise?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const cpb = db.cpb?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const jig = db.jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const ex = db.ex_jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const nap = db.napthol?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const dye = cpb + jig + ex + nap;
+    
+    return {
+      date: formatDateForDisplay(parseSheetDate(row[0])),
+      sill: sill,
+      party: (row[2] || "N/A").substring(0, 4),
+      sing: sing,
+      merc: merc,
+      dye: dye,
+      constr: (row[4] || "N/A").substring(0, 5),
+      lot: safeNumber(row[5])
+    };
+  });
+  
+  return { reports, totalCount: greyRows.length };
+}
+
+function getLotGreySummary(db, lotNumber) {
+  const searchLot = normalizeSill(lotNumber);
+  const greyRows = db.grey?.slice(1).filter(row =>
+    normalizeSill(row[5]) === searchLot
+  ) || [];
+  
+  if (greyRows.length === 0) return null;
+  
+  const sortedRows = [...greyRows].sort((a, b) => {
+    const dateA = parseSheetDate(a[0]);
+    const dateB = parseSheetDate(b[0]);
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateA - dateB;
+  });
+  
+  const reports = sortedRows.map(row => {
+    const sill = normalizeSill(row[1]);
+    const sing = db.singing?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const merc = db.marcerise?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const cpb = db.cpb?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const jig = db.jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const ex = db.ex_jigger?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const nap = db.napthol?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
+    const dye = cpb + jig + ex + nap;
+    
+    return {
+      date: formatDateForDisplay(parseSheetDate(row[0])),
+      sill: sill,
+      party: (row[2] || "N/A").substring(0, 4),
+      sing: sing,
+      merc: merc,
+      dye: dye,
+      constr: (row[4] || "N/A").substring(0, 5),
+      lot: safeNumber(row[5])
+    };
+  });
+  
+  return { reports, totalCount: greyRows.length };
+}
 // =========================================================
 //   ROUTER
 // =========================================================
@@ -672,15 +693,15 @@ router.post("/ask", async (req, res) => {
       }
     }
     return htmlWrapper(proc.toUpperCase() + " Daily", 
-      '<table class="erp-table"><thead> <tr><th style="width:30%">Date</th><th style="width:70%">Yards</th></tr></thead><tbody>' + 
-      (rows || '<tr><td colspan="2" style="text-align:center">No data</td></tr>') + 
-      '</tbody></table><div class="summary-box">H:' + data.highest.toLocaleString() + ' L:' + data.lowest.toLocaleString() + ' T:' + data.total.toLocaleString() + '</div>'
+      '<table class="erp-table"><thead> <th style="width:30%">Date</th><th style="width:70%">Yards</th> </thead><tbody>' + 
+      (rows || '<td><td colspan="2" style="text-align:center">No data</td></tr>') + 
+      '</tbody> <div class="summary-box">H:' + data.highest.toLocaleString() + ' L:' + data.lowest.toLocaleString() + ' T:' + data.total.toLocaleString() + '</div>'
     );
   }
 
   function formatFactorySummaryHTML(data) {
     return htmlWrapper("Factory Summary", 
-      '<table class="erp-table"><thead> <tr><th style="width:50%">Process</th><th style="width:50%">Yards</th></tr></thead><tbody>' +
+      '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
       '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + data.process.s.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Mercerise</td><td style="text-align:center; width:50%">' + data.process.m.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Bleach</td><td style="text-align:center; width:50%">' + data.process.b.toLocaleString() + '</td></tr>' +
@@ -689,13 +710,13 @@ router.post("/ask", async (req, res) => {
       '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + data.dyeing.ex.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Napthol</td><td style="text-align:center; width:50%">' + data.dyeing.n.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Folding</td><td style="text-align:center; width:50%">' + data.folding.toLocaleString() + '</td></tr>' +
-      '</tbody></table><div class="summary-box">Dye Total: ' + data.dyeTotal.toLocaleString() + '</div>'
+      '</tbody> <div class="summary-box">Dye Total: ' + data.dyeTotal.toLocaleString() + '</div>'
     );
   }
 
   function formatDateReportHTML(data, dateStr) {
     return htmlWrapper("Daily - " + dateStr, 
-      '<table class="erp-table"><thead> <tr><th style="width:50%">Section</th><th style="width:50%">Yards</th></tr></thead><tbody>' +
+      '<table class="erp-table"><thead> <th style="width:50%">Section</th><th style="width:50%">Yards</th> </thead><tbody>' +
       '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + data.process.s.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Mercerise</td><td style="text-align:center; width:50%">' + data.process.m.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Bleach</td><td style="text-align:center; width:50%">' + data.process.b.toLocaleString() + '</td></tr>' +
@@ -704,7 +725,7 @@ router.post("/ask", async (req, res) => {
       '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + data.dyeing.ex.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Napthol</td><td style="text-align:center; width:50%">' + data.dyeing.n.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Folding</td><td style="text-align:center; width:50%">' + data.folding.toLocaleString() + '</td></tr>' +
-      '</tbody></table><div class="summary-box">Total: ' + data.total.toLocaleString() + '</div>'
+      '</tbody> <div class="summary-box">Total: ' + data.total.toLocaleString() + '</div>'
     );
   }
 
@@ -715,18 +736,20 @@ router.post("/ask", async (req, res) => {
     for (let i = 0; i < data.reports.length; i++) {
       const r = data.reports[i];
       rows += "<tr>" +
-        "<td style='text-align:center'>" + formatDateForDisplay(r.date) + "</td>" +
+        "<td style='text-align:center'>" + r.date + "</td>" +
         "<td style='text-align:center'>" + r.sill + "</td>" +
         "<td style='text-align:center'>" + r.party + "</td>" +
-        "<td style='text-align:center'>" + r.singing.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.construction + "</td>" +
+        "<td style='text-align:center'>" + r.sing.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.merc.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.dye.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.constr + "</td>" +
         "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
         "</tr>";
     }
-    return htmlWrapper("Party Grey - " + partyName, 
-      '<div class="info-row">Total Entries: ' + data.totalCount + ' | Showing last ' + data.reports.length + '</div>' +
+    return htmlWrapper(partyName, 
+      '<div class="info-row">Total: ' + data.totalCount + ' | Last: ' + data.reports.length + '</div>' +
       '<table class="erp-table"><thead>' +
-      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Singing</th><th>Const</th><th>Lot</th></tr>' +
+      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Sing</th><th>Merc</th><th>Dye</th><th>Const</th><th>Lot</th></tr>' +
       '</thead><tbody>' + rows + '</tbody></table>'
     );
   }
@@ -736,18 +759,20 @@ router.post("/ask", async (req, res) => {
     for (let i = 0; i < data.reports.length; i++) {
       const r = data.reports[i];
       rows += "<tr>" +
-        "<td style='text-align:center'>" + formatDateForDisplay(r.date) + "</td>" +
+        "<td style='text-align:center'>" + r.date + "</td>" +
         "<td style='text-align:center'>" + r.sill + "</td>" +
         "<td style='text-align:center'>" + r.party + "</td>" +
-        "<td style='text-align:center'>" + r.singing.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.construction + "</td>" +
+        "<td style='text-align:center'>" + r.sing.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.merc.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.dye.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.constr + "</td>" +
         "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
         "</tr>";
     }
     return htmlWrapper("Const Grey - " + construction, 
-      '<div class="info-row">Total Entries: ' + data.totalCount + ' | Showing last ' + data.reports.length + '</div>' +
+      '<div class="info-row">Total: ' + data.totalCount + ' | Last: ' + data.reports.length + '</div>' +
       '<table class="erp-table"><thead>' +
-      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Singing</th><th>Const</th><th>Lot</th></tr>' +
+      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Sing</th><th>Merc</th><th>Dye</th><th>Const</th><th>Lot</th></tr>' +
       '</thead><tbody>' + rows + '</tbody></table>'
     );
   }
@@ -757,18 +782,20 @@ router.post("/ask", async (req, res) => {
     for (let i = 0; i < data.reports.length; i++) {
       const r = data.reports[i];
       rows += "<tr>" +
-        "<td style='text-align:center'>" + formatDateForDisplay(r.date) + "</td>" +
+        "<td style='text-align:center'>" + r.date + "</td>" +
         "<td style='text-align:center'>" + r.sill + "</td>" +
         "<td style='text-align:center'>" + r.party + "</td>" +
-        "<td style='text-align:center'>" + r.singing.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.construction + "</td>" +
+        "<td style='text-align:center'>" + r.sing.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.merc.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.dye.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.constr + "</td>" +
         "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
         "</tr>";
     }
     return htmlWrapper("Sill Grey - " + sillNumber, 
-      '<div class="info-row">Total Entries: ' + data.totalCount + '</div>' +
+      '<div class="info-row">Total: ' + data.totalCount + '</div>' +
       '<table class="erp-table"><thead>' +
-      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Singing</th><th>Const</th><th>Lot</th></tr>' +
+      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Sing</th><th>Merc</th><th>Dye</th><th>Const</th><th>Lot</th></tr>' +
       '</thead><tbody>' + rows + '</tbody></table>'
     );
   }
@@ -778,18 +805,20 @@ router.post("/ask", async (req, res) => {
     for (let i = 0; i < data.reports.length; i++) {
       const r = data.reports[i];
       rows += "<tr>" +
-        "<td style='text-align:center'>" + formatDateForDisplay(r.date) + "</td>" +
+        "<td style='text-align:center'>" + r.date + "</td>" +
         "<td style='text-align:center'>" + r.sill + "</td>" +
         "<td style='text-align:center'>" + r.party + "</td>" +
-        "<td style='text-align:center'>" + r.singing.toLocaleString() + "</td>" +
-        "<td style='text-align:center'>" + r.construction + "</td>" +
+        "<td style='text-align:center'>" + r.sing.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.merc.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.dye.toLocaleString() + "</td>" +
+        "<td style='text-align:center'>" + r.constr + "</td>" +
         "<td style='text-align:center'>" + r.lot.toLocaleString() + "</td>" +
         "</tr>";
     }
     return htmlWrapper("Lot Grey - " + lotNumber, 
-      '<div class="info-row">Total Entries: ' + data.totalCount + '</div>' +
+      '<div class="info-row">Total: ' + data.totalCount + '</div>' +
       '<table class="erp-table"><thead>' +
-      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Singing</th><th>Const</th><th>Lot</th></tr>' +
+      '<tr><th>Date</th><th>Sill</th><th>Party</th><th>Sing</th><th>Merc</th><th>Dye</th><th>Const</th><th>Lot</th></tr>' +
       '</thead><tbody>' + rows + '</tbody></table>'
     );
   }
@@ -811,7 +840,7 @@ router.post("/ask", async (req, res) => {
         "</tr>";
     }
     return htmlWrapper("Party Report - " + data.reports[0].party, 
-      '<div class="info-row">Showing ' + data.reports.length + ' of ' + data.totalCount + ' entries (last 100)</div>' +
+      '<div class="info-row">Showing ' + data.reports.length + ' of ' + data.totalCount + ' (last 100)</div>' +
       '<table class="erp-table"><thead>' +
       '<tr><th>Sill</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th></tr>' +
       '</thead><tbody>' + rows + '</tbody></table>' +
@@ -838,14 +867,12 @@ router.post("/ask", async (req, res) => {
         "</tr>";
     }
     return htmlWrapper("Party+Const - " + construction, 
-      '<div class="info-row"><b>Party:</b> ' + data.reports[0].party + ' | <b>Const:</b> ' + construction + ' | <b>Entries:</b> ' + data.totalCount + '</div>' +
+      '<div class="info-row">Party: ' + data.reports[0].party + ' | Const: ' + construction + ' | Entries: ' + data.totalCount + '</div>' +
       '<table class="erp-table"><thead>' +
       '<tr><th>Sill</th><th>Party</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th></tr>' +
       '</thead><tbody>' + rows + '</tbody>' +
       '<tfoot><tr style="background:#e2e8f0;font-weight:bold">' +
-      '<td colspan="4">Total</td>' +
-      '<td style="text-align:center">' + data.totalLot.toLocaleString() + '</td>' +
-      '<td style="text-align:center">' + data.totalDye.toLocaleString() + '</td>' +
+      '<td colspan="4">Total</td><td style="text-align:center">' + data.totalLot.toLocaleString() + '</td><td style="text-align:center">' + data.totalDye.toLocaleString() + '</td>' +
       '<td class="' + (data.totalLot - data.totalDye <= 0 ? "positive" : "negative") + '" style="text-align:center">' + (data.totalLot - data.totalDye).toLocaleString() + '</td>' +
       '</tr></tfoot></table>' +
       '<div class="summary-box">Comp: ' + completion + '%</div>'
@@ -871,14 +898,12 @@ router.post("/ask", async (req, res) => {
         "</tr>";
     }
     return htmlWrapper("Const Report - " + construction, 
-      '<div class="info-row"><b>Const:</b> ' + construction + ' | <b>Entries:</b> ' + data.totalCount + '</div>' +
+      '<div class="info-row">Const: ' + construction + ' | Entries: ' + data.totalCount + '</div>' +
       '<table class="erp-table"><thead>' +
       '<tr><th>Sill</th><th>Party</th><th>Quali</th><th>Const</th><th>Lot</th><th>Dye</th><th>St</th></tr>' +
       '</thead><tbody>' + rows + '</tbody>' +
       '<tfoot><tr style="background:#e2e8f0;font-weight:bold">' +
-      '<td colspan="4">Total</td>' +
-      '<td style="text-align:center">' + data.totalLot.toLocaleString() + '</td>' +
-      '<td style="text-align:center">' + data.totalDye.toLocaleString() + '</td>' +
+      '<td colspan="4">Total</td><td style="text-align:center">' + data.totalLot.toLocaleString() + '</td><td style="text-align:center">' + data.totalDye.toLocaleString() + '</td>' +
       '<td class="' + (data.totalLot - data.totalDye <= 0 ? "positive" : "negative") + '" style="text-align:center">' + (data.totalLot - data.totalDye).toLocaleString() + '</td>' +
       '</tr></tfoot></table>' +
       '<div class="summary-box">Comp: ' + completion + '%</div>'
@@ -926,15 +951,16 @@ router.post("/ask", async (req, res) => {
   function formatTotalDyeingHTML(c, j, ex, n) {
     const total = c + j + ex + n;
     return htmlWrapper("Total Dyeing", 
-      '<table class="erp-table"><thead> <tr><th style="width:50%">Process</th><th style="width:50%">Yards</th></tr></thead><tbody>' +
+      '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
       '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + c.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Jigger</td><td style="text-align:center; width:50%">' + j.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + ex.toLocaleString() + '</td></tr>' +
       '<tr><td style="width:50%">Napthol</td><td style="text-align:center; width:50%">' + n.toLocaleString() + '</td></tr>' +
-      '</tbody></table><div class="summary-box">Total: ' + total.toLocaleString() + '</div>'
+      '</tbody> <div class="summary-box">Total: ' + total.toLocaleString() + '</div>'
     );
   }
-    // ================= NEW GREY SEARCHES =================
+
+  // ================= NEW GREY SEARCHES =================
   
   const partyGreyMatch = question.match(/^(.+?)\s+grey$/);
   if (partyGreyMatch) {
@@ -981,6 +1007,7 @@ router.post("/ask", async (req, res) => {
     }
   }
 
+  // ================= ONLY CONSTRUCTION SEARCH =================
   const onlyConstructionMatch = question.match(/^(\d{1,3}[x*×\/]\d{1,3}(?:\/\d{1,3}[x*×\/]\d{1,3})?)$/i);
   if (onlyConstructionMatch) {
     let construction = onlyConstructionMatch[1].trim();
@@ -993,6 +1020,7 @@ router.post("/ask", async (req, res) => {
     }
   }
 
+  // ================= PARTY + CONSTRUCTION SEARCH =================
   const partyConstructionMatch = question.match(/^(.+?)\s+(\d{1,3}[x*×\/]\d{1,3}(?:\/\d{1,3}[x*×\/]\d{1,3})?)$/i);
   if (partyConstructionMatch) {
     const partyName = partyConstructionMatch[1].trim();
@@ -1006,10 +1034,12 @@ router.post("/ask", async (req, res) => {
     }
   }
 
+  // ================= HELP =================
   if (cleanInput === "help") {
     return res.json({ reply: htmlWrapper("Commands", '<div style="padding:5px;">• cpb per day<br>• total dyeing<br>• totall<br>• 15 feb<br>• 15 feb cpb<br>• 12345 (lot)<br>• party name<br>• party name construction (e.g., noor 50x50)<br>• construction only (e.g., 50x50, 50*50, 50/50)<br>• feb per day dyeing<br><br>--- GREY COMMANDS ---<br>• party grey (e.g., noor grey)<br>• construction grey (e.g., 50x50 grey)<br>• sill grey (e.g., 624 grey)<br>• lot grey (e.g., 20109 grey)</div>') });
   }
 
+  // ================= MONTH PER DAY DYEING =================
   const monthPerDayDyeingMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+dyeing$/);
   if (monthPerDayDyeingMatch) {
     const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
@@ -1068,6 +1098,7 @@ router.post("/ask", async (req, res) => {
       '</tr></tfoot></table>') });
   }
     
+  // ================= PER DAY =================
   const perDayMatch = question.match(/(cpb|jigger|ex-jigger|exjigger|napthol|singing|marcerise|bleach|folding)\s*per\s*day/);
   if (perDayMatch) {
     const proc = perDayMatch[1].replace("exjigger", "ex_jigger").replace("ex-jigger", "ex_jigger");
@@ -1075,6 +1106,7 @@ router.post("/ask", async (req, res) => {
     return res.json({ reply: formatPerDayHTML(proc, data) });
   }
 
+  // ================= TOTAL DYEING =================
   if (cleanInput === "totaldyeing" || cleanInput === "total dyeing") {
     const c = getProcessSum(db, "cpb");
     const j = getProcessSum(db, "jigger");
@@ -1083,11 +1115,13 @@ router.post("/ask", async (req, res) => {
     return res.json({ reply: formatTotalDyeingHTML(c, j, ex, n) });
   }
 
+  // ================= FACTORY SUMMARY =================
   if (cleanInput === "totall") {
     const data = getFactoryTotals(db);
     return res.json({ reply: formatFactorySummaryHTML(data) });
   }
 
+  // ================= DATE + PROCESS =================
   const dateObj = getKeywordDate(question);
   const procMatch = question.match(/(cpb|jigger|exjigger|ex-jigger|napthol|singing|marcerise|bleach|folding)/);
   if (dateObj && procMatch) {
@@ -1115,7 +1149,7 @@ router.post("/ask", async (req, res) => {
     for (let i = 0; i < entries.length; i++) {
       const sill = entries[i][0];
       const data = entries[i][1];
-      tableRows += "<tr>" +
+      tableRows += "<td>" +
         "<td style='text-align:center'>" + sill + "</td>" +
         "<td style='text-align:center'>" + data.party.substring(0, 8) + "</td>" +
         "<td style='text-align:center'>" + data.quality + "</td>" +
@@ -1131,16 +1165,18 @@ router.post("/ask", async (req, res) => {
     
     return res.json({ reply: htmlWrapper(proc.toUpperCase() + " " + dateObj.getDate() + " " + dateObj.toLocaleString("default", {month:"short"}), 
       '<table class="erp-table"><thead>' +
-      "<tr><th style='width:15%'>Sill</th><th style='width:25%'>Party</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Yds</th></tr>" +
-      '</thead><tbody>' + tableRows + '</tbody></table>' +
+      "<tr><th style='width:15%'>Sill</th><th style='width:25%'>Party</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Yds</th></td>" +
+      '</thead><tbody>' + tableRows + '</tbody></tr>' +
       '<div class="summary-box">Total: ' + total.toLocaleString() + '</div>') });
   }
 
+  // ================= DATE ONLY =================
   if (dateObj) {
     const data = getDateReport(db, dateObj);
     return res.json({ reply: formatDateReportHTML(data, dateObj.getDate() + " " + dateObj.toLocaleString("default", {month:"short"})) });
   }
 
+  // ================= MONTH SMART SUMMARY =================
   const monthMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*(process|dyeing|folding|totall|total|report|full|summary)?$/);
   if (monthMatch) {
     const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
@@ -1163,20 +1199,20 @@ router.post("/ask", async (req, res) => {
     
     if (section === "dyeing") {
       return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Dyeing", 
-        '<table class="erp-table"><thead> <tr><th style="width:50%">Process</th><th style="width:50%">Yards</th></tr> </thead><tbody>' +
-        '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Jigger</td><td style="text-align:center; width:50%">' + dyeing.j.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Ex-Jigger</td><td style="text-align:center; width:50%">' + dyeing.ex.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Napthol</td><td style="text-align:center; width:50%">' + dyeing.n.toLocaleString() + '</td></tr>' +
-        '</tbody></table><div class="summary-box">Total: ' + dyeTotal.toLocaleString() + '</div>') });
+        '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
+        '<tr><td style="width:50%">CPB</td><td style="text-align:center; width:50%">' + dyeing.c.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">JiggerNonNullable<td style="text-align:center; width:50%">' + dyeing.j.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">Ex-JiggerNonNullable<td style="text-align:center; width:50%">' + dyeing.ex.toLocaleString() + 'NonNullable' +
+        '<td><td style="width:50%">NaptholNonNullable<td style="text-align:center; width:50%">' + dyeing.n.toLocaleString() + 'NonNullable' +
+        '</tbody> <div class="summary-box">Total: ' + dyeTotal.toLocaleString() + '</div>') });
     }
     if (section === "process") {
       return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Process", 
-        '<table class="erp-table"><thead> <tr><th style="width:50%">Process</th><th style="width:50%">Yards</th></tr> </thead><tbody>' +
-        '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Mercerise</td><td style="text-align:center; width:50%">' + process.m.toLocaleString() + '</td></tr>' +
-        '<tr><td style="width:50%">Bleach</td><td style="text-align:center; width:50%">' + process.b.toLocaleString() + '</td></tr>' +
-        '</tbody></table>') });
+        '<table class="erp-table"><thead> <th style="width:50%">Process</th><th style="width:50%">Yards</th> </thead><tbody>' +
+        '<tr><td style="width:50%">Singing</td><td style="text-align:center; width:50%">' + process.s.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">MerceriseNonNullable<td style="text-align:center; width:50%">' + process.m.toLocaleString() + 'NonNullable' +
+        '<tr><td style="width:50%">BleachNonNullable<td style="text-align:center; width:50%">' + process.b.toLocaleString() + 'NonNullable' +
+        '</tbody> </div>') });
     }
     if (section === "folding") {
       return res.json({ reply: htmlWrapper(monthMatch[1].toUpperCase() + " Folding", '<div class="summary-box">Folding: ' + folding.toLocaleString() + '</div>') });
@@ -1184,12 +1220,14 @@ router.post("/ask", async (req, res) => {
     return res.json({ reply: formatMonthSummaryHTML(monthMatch[1].toUpperCase(), process, dyeing, folding, dyeTotal) });
   }
 
+  // ================= SILL SEARCH =================
   const numMatch = question.match(/(\d{3,})/);
   if (numMatch) {
     const reports = getSillReport(db, normalizeSill(numMatch[1]));
     if (reports) return res.json({ reply: formatSillReportHTML(reports) });
   }
 
+  // ================= PARTY + PROCESS =================
   const partyProcessMatch = question.match(/^(.+)\s+(cpb|jigger|exjigger|ex-jigger|napthol|singing|marcerise|bleach|folding)$/);
   if (partyProcessMatch) {
     const partyName = partyProcessMatch[1].trim();
@@ -1208,7 +1246,7 @@ router.post("/ask", async (req, res) => {
       const qty = db[proc]?.slice(1).reduce((t, r) => normalizeSill(r[1]) === sill ? t + safeNumber(r[6]) : t, 0) || 0;
       if (qty > 0) {
         total += qty;
-        rows += "<tr>" +
+        rows += "<td>" +
           "<td style='text-align:center'>" + sill + "</td>" +
           "<td style='text-align:center'>" + quality + "</td>" +
           "<td style='text-align:center'>" + construction + "</td>" +
@@ -1221,13 +1259,15 @@ router.post("/ask", async (req, res) => {
     return res.json({ reply: htmlWrapper(partyName.substring(0, 10) + " - " + proc, 
       '<table class="erp-table"><thead>' +
       "<tr><th style='width:15%'>Sill</th><th style='width:20%'>Quali</th><th style='width:20%'>Const</th><th style='width:20%'>Lot</th><th style='width:25%'>Yards</th></tr>" +
-      '</thead><tbody>' + (rows || '<tr><td colspan="5" style="text-align:center">No data</td></tr>') + '</tbody></table>' +
+      '</thead><tbody>' + (rows || '<tr><td colspan="5" style="text-align:center">No data</td></tr>') + '</tbody></td>' +
       '<div class="summary-box">Total ' + proc.toUpperCase() + ': ' + total.toLocaleString() + ' yds</div>') });
   }
 
+  // ================= PARTY SUMMARY =================
   const partyData = getPartyFullSummary(db, question);
   if (partyData) return res.json({ reply: formatPartySummaryHTML(partyData) });
 
+  // ================= DEFAULT =================
   return res.json({ reply: htmlWrapper("ERP Search", '<div style="padding:5px;">Type <b>help</b> for commands</div>') });
 });
 
