@@ -287,6 +287,173 @@ router.post("/ask", async (req, res) => {
   }
 
   // =====================================================
+// NEW: DATE RANGE FILTERS
+// =====================================================
+
+// Date range helper functions
+function getDateRangeFromCommand(cmd) {
+  const today = new Date(currentYear, now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  
+  const last7Start = new Date(today);
+  last7Start.setDate(today.getDate() - 6);
+  
+  const may1to15 = {
+    start: new Date(currentYear, 4, 1),
+    end: new Date(currentYear, 4, 15)
+  };
+  
+  const may22toJun22 = {
+    start: new Date(currentYear, 4, 22),
+    end: new Date(currentYear, 5, 22)
+  };
+  
+  function getMayWeeks() {
+    const weeks = [];
+    const mayStart = new Date(currentYear, 4, 1);
+    const mayEnd = new Date(currentYear, 4, 31);
+    let weekStart = new Date(mayStart);
+    while (weekStart <= mayEnd) {
+      let weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      if (weekEnd > mayEnd) weekEnd = mayEnd;
+      weeks.push({ start: new Date(weekStart), end: new Date(weekEnd) });
+      weekStart.setDate(weekStart.getDate() + 7);
+    }
+    return weeks;
+  }
+  
+  if (cmd === 'today') return { type: 'single', start: today, end: today };
+  if (cmd === 'yesterday') return { type: 'single', start: yesterday, end: yesterday };
+  if (cmd === 'last7days') return { type: 'range', start: last7Start, end: today };
+  if (cmd === 'may1-15') return { type: 'range', start: may1to15.start, end: may1to15.end };
+  if (cmd === 'may22-jun22') return { type: 'range', start: may22toJun22.start, end: may22toJun22.end };
+  if (cmd === 'may-weekly') return { type: 'weekly', weeks: getMayWeeks() };
+  
+  return null;
+}
+
+async function fetchDataForDateRange(startDate, endDate) {
+  let machineTotals = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  let processTotals = {};
+  let grandTotal = 0;
+  
+  for (let stn in STN_GIDS) {
+    const db = await fetchSheetByGid(STN_GIDS[stn]);
+    if (!db || db.length <= 1) continue;
+    
+    const headers = db[0];
+    const rows = db.slice(1);
+    
+    const filteredRows = rows.filter(r => {
+      if (!r[0]) return false;
+      const d = new Date(r[0]);
+      if (isNaN(d)) return false;
+      return d >= startDate && d <= endDate;
+    });
+    
+    if (!filteredRows.length) continue;
+    
+    const getTotal = i => filteredRows.reduce((t, r) => t + (parseFloat(r[i]) || 0), 0);
+    
+    let stnTotal = 0;
+    
+    headers.forEach((h, i) => {
+      if (i === 0) return;
+      const total = toYds(getTotal(i));
+      if (total !== 0) {
+        stnTotal += total;
+        if (!processTotals[h]) processTotals[h] = 0;
+        processTotals[h] += total;
+      }
+    });
+    
+    machineTotals[stn] = stnTotal;
+    grandTotal += stnTotal;
+  }
+  
+  return { machineTotals, processTotals, grandTotal };
+}
+
+function renderRangeReport(title, machineTotals, processTotals, grandTotal) {
+  let machineRows = '';
+  for (let stn = 1; stn <= 5; stn++) {
+    if (machineTotals[stn] > 0) {
+      machineRows += `
+        <div class="process-row">
+          <span class="process-name">STN ${stn}</span>
+          <span class="process-value">${formatNumber(machineTotals[stn])} YDS</span>
+        </div>
+      `;
+    }
+  }
+  
+  let processRows = '';
+  for (let p in processTotals) {
+    processRows += `
+      <div class="process-row">
+        <span class="process-name">${p}</span>
+        <span class="process-value">${formatNumber(processTotals[p])} YDS</span>
+      </div>
+    `;
+  }
+  
+  const content = `
+    <div class="stn-block">
+      <div class="stn-title">🏭 MACHINE WISE</div>
+      ${machineRows || '<div class="process-row">No data</div>'}
+      <div class="total-row">
+        <span style="font-weight:bold">TOTAL</span>
+        <span style="float:right">${formatNumber(grandTotal)} YDS</span>
+      </div>
+    </div>
+    <div class="stn-block">
+      <div class="stn-title">⚙ PROCESS WISE</div>
+      ${processRows || '<div class="process-row">No data</div>'}
+      <div class="total-row">
+        <span style="font-weight:bold">TOTAL</span>
+        <span style="float:right">${formatNumber(grandTotal)} YDS</span>
+      </div>
+    </div>
+  `;
+  
+  return htmlWrapper(title, content);
+}
+
+// Check for date range commands
+let rangeCmd = null;
+if (question === 'today') rangeCmd = 'today';
+else if (question === 'yesterday') rangeCmd = 'yesterday';
+else if (question === 'last 7 days') rangeCmd = 'last7days';
+else if (question === '1 may to 15 may') rangeCmd = 'may1-15';
+else if (question === '22 may to 22 june') rangeCmd = 'may22-jun22';
+else if (question === 'may weekly') rangeCmd = 'may-weekly';
+
+if (rangeCmd) {
+  const rangeInfo = getDateRangeFromCommand(rangeCmd);
+  
+  if (rangeInfo.type === 'weekly') {
+    let weeklyReports = '';
+    for (let i = 0; i < rangeInfo.weeks.length; i++) {
+      const week = rangeInfo.weeks[i];
+      const { machineTotals, processTotals, grandTotal } = await fetchDataForDateRange(week.start, week.end);
+      const startStr = `${week.start.getDate()} ${months[week.start.getMonth()]}`;
+      const endStr = `${week.end.getDate()} ${months[week.end.getMonth()]}`;
+      weeklyReports += renderRangeReport(`Week ${i+1} (${startStr} - ${endStr})`, machineTotals, processTotals, grandTotal);
+      weeklyReports += '<hr>';
+    }
+    return res.json({ reply: weeklyReports });
+  } 
+  else {
+    const { machineTotals, processTotals, grandTotal } = await fetchDataForDateRange(rangeInfo.start, rangeInfo.end);
+    const startStr = `${rangeInfo.start.getDate()} ${months[rangeInfo.start.getMonth()]}`;
+    const endStr = rangeInfo.type === 'single' ? startStr : `${rangeInfo.end.getDate()} ${months[rangeInfo.end.getMonth()]}`;
+    const title = rangeInfo.type === 'single' ? startStr : `${startStr} - ${endStr}`;
+    return res.json({ reply: renderRangeReport(title, machineTotals, processTotals, grandTotal) });
+  }
+}
+  // =====================================================
   // PER DAY MACHINE REPORT
   // =====================================================
   const perDayMachineMatch = question.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+per\s+day\s+machine$/);
