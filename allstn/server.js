@@ -421,38 +421,57 @@ function renderRangeReport(title, machineTotals, processTotals, grandTotal) {
   return htmlWrapper(title, content);
 }
 
-// Check for date range commands
-let rangeCmd = null;
-if (question === 'today') rangeCmd = 'today';
-else if (question === 'yesterday') rangeCmd = 'yesterday';
-else if (question === 'last 7 days') rangeCmd = 'last7days';
-else if (question === '1 may to 15 may') rangeCmd = 'may1-15';
-else if (question === '22 may to 22 june') rangeCmd = 'may22-jun22';
-else if (question === 'may weekly') rangeCmd = 'may-weekly';
+// =====================================================
+// DYNAMIC DATE RANGE (যেকোনো তারিখ থেকে যেকোনো তারিখ)
+// =====================================================
 
-if (rangeCmd) {
-  const rangeInfo = getDateRangeFromCommand(rangeCmd);
+// Helper: "1 feb to 20 june" ফরম্যাট পার্স করার ফাংশন
+function parseDateRangeFromQuestion(question) {
+  const pattern = /^(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+to\s+(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/i;
+  const match = question.match(pattern);
   
-  if (rangeInfo.type === 'weekly') {
-    let weeklyReports = '';
-    for (let i = 0; i < rangeInfo.weeks.length; i++) {
-      const week = rangeInfo.weeks[i];
-      const { machineTotals, processTotals, grandTotal } = await fetchDataForDateRange(week.start, week.end);
-      const startStr = `${week.start.getDate()} ${months[week.start.getMonth()]}`;
-      const endStr = `${week.end.getDate()} ${months[week.end.getMonth()]}`;
-      weeklyReports += renderRangeReport(`Week ${i+1} (${startStr} - ${endStr})`, machineTotals, processTotals, grandTotal);
-      weeklyReports += '<hr>';
-    }
-    return res.json({ reply: weeklyReports });
-  } 
-  else {
-    const { machineTotals, processTotals, grandTotal } = await fetchDataForDateRange(rangeInfo.start, rangeInfo.end);
-    const startStr = `${rangeInfo.start.getDate()} ${months[rangeInfo.start.getMonth()]}`;
-    const endStr = rangeInfo.type === 'single' ? startStr : `${rangeInfo.end.getDate()} ${months[rangeInfo.end.getMonth()]}`;
-    const title = rangeInfo.type === 'single' ? startStr : `${startStr} - ${endStr}`;
-    return res.json({ reply: renderRangeReport(title, machineTotals, processTotals, grandTotal) });
+  if (!match) return null;
+  
+  const startDay = parseInt(match[1]);
+  const startMonth = match[2].toLowerCase();
+  const endDay = parseInt(match[3]);
+  const endMonth = match[4].toLowerCase();
+  
+  const startMonthIndex = months.indexOf(startMonth);
+  const endMonthIndex = months.indexOf(endMonth);
+  
+  let startYear = currentYear;
+  let endYear = currentYear;
+  
+  if (endMonthIndex < startMonthIndex) {
+    endYear = currentYear + 1;
+  } else if (endMonthIndex === startMonthIndex && endDay < startDay) {
+    endYear = currentYear + 1;
   }
+  
+  const startDate = new Date(startYear, startMonthIndex, startDay);
+  const endDate = new Date(endYear, endMonthIndex, endDay);
+  
+  if (isNaN(startDate) || isNaN(endDate)) return null;
+  if (startDate > endDate) return null;
+  
+  return { startDate, endDate, startDay, startMonth, endDay, endMonth };
 }
+
+// ডায়নামিক ডেট রেঞ্জ চেক করা
+const dynamicRange = parseDateRangeFromQuestion(question);
+
+if (dynamicRange) {
+  const { startDate, endDate, startDay, startMonth, endDay, endMonth } = dynamicRange;
+  const { machineTotals, processTotals, grandTotal } = await fetchDataForDateRange(startDate, endDate);
+  
+  const startStr = `${startDay.toString().padStart(2, '0')} ${startMonth.toUpperCase()}`;
+  const endStr = `${endDay.toString().padStart(2, '0')} ${endMonth.toUpperCase()}`;
+  const title = `${startStr} - ${endStr}`;
+  
+  return res.json({ reply: renderRangeReport(title, machineTotals, processTotals, grandTotal) });
+}
+  
   // =====================================================
   // PER DAY MACHINE REPORT
   // =====================================================
