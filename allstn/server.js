@@ -288,147 +288,247 @@ router.post("/ask", async (req, res) => {
 
   // =====================================================
 // =====================================================
-// ANY DATE RANGE (যেকোনো তারিখ থেকে যেকোনো তারিখ)
+// =====================================================
+// FIXED DATE RANGE WITH YEAR
+// Example:
+// 22 april 26 to 20 may 26
+// 5 dec 2025 to 2 jan 2026
 // =====================================================
 
-// যেকোনো "দিন মাস to দিন মাস" ফরম্যাট চেক করা
-const anyDateRangeMatch = question.match(/^(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+to\s+(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/i);
+const anyDateRangeMatch = question.match(
+  /^(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\s+(\d{2,4})\s+to\s+(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\s+(\d{2,4})$/i
+);
 
 if (anyDateRangeMatch) {
+
   const startDay = parseInt(anyDateRangeMatch[1]);
-  const startMonth = anyDateRangeMatch[2].toLowerCase();
-  const endDay = parseInt(anyDateRangeMatch[3]);
-  const endMonth = anyDateRangeMatch[4].toLowerCase();
-  
+
+  const startMonth = anyDateRangeMatch[2]
+    .substring(0, 3)
+    .toLowerCase();
+
+  let startYear = parseInt(anyDateRangeMatch[3]);
+
+  const endDay = parseInt(anyDateRangeMatch[4]);
+
+  const endMonth = anyDateRangeMatch[5]
+    .substring(0, 3)
+    .toLowerCase();
+
+  let endYear = parseInt(anyDateRangeMatch[6]);
+
+  // 26 => 2026
+  if (startYear < 100) startYear += 2000;
+  if (endYear < 100) endYear += 2000;
+
   const startMonthIndex = months.indexOf(startMonth);
   const endMonthIndex = months.indexOf(endMonth);
-  
-  // বছর নির্ধারণ
-  let startYear = currentYear;
-  let endYear = currentYear;
-  
-  // যদি শেষ মাস শুরু মাস থেকে ছোট হয়, তাহলে পরের বছর
-  if (endMonthIndex < startMonthIndex) {
-    endYear = currentYear + 1;
-  } 
-  // একই মাস হলে দিন চেক করুন
-  else if (endMonthIndex === startMonthIndex && endDay < startDay) {
-    endYear = currentYear + 1;
+
+  // Invalid month check
+  if (startMonthIndex === -1 || endMonthIndex === -1) {
+    return res.json({
+      reply: htmlWrapper(
+        "Error",
+        "❌ Invalid month name"
+      )
+    });
   }
-  
-  const startDate = new Date(startYear, startMonthIndex, startDay);
-  const endDate = new Date(endYear, endMonthIndex, endDay);
-  
-  // ভ্যালিড ডেট চেক
-  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-    return res.json({ reply: htmlWrapper("Error", "❌ ভুল তারিখ ফরম্যাট") });
-  }
-  
+
+  const startDate = new Date(
+    startYear,
+    startMonthIndex,
+    startDay
+  );
+
+  const endDate = new Date(
+    endYear,
+    endMonthIndex,
+    endDay,
+    23,
+    59,
+    59
+  );
+
+  console.log("Start Date:", startDate);
+  console.log("End Date:", endDate);
+
+  // Date validation
   if (startDate > endDate) {
-    return res.json({ reply: htmlWrapper("Error", "❌ শুরু তারিখ শেষ তারিখের চেয়ে বড় হতে পারে না") });
+    return res.json({
+      reply: htmlWrapper(
+        "Error",
+        `❌ শুরু তারিখ শেষ তারিখের চেয়ে বড়`
+      )
+    });
   }
-  
-  // ডাটা ফেচ করা
-  let machineTotals = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+  // =====================================
+  // DATA FETCH
+  // =====================================
+
+  let machineTotals = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0
+  };
+
   let processTotals = {};
   let grandTotal = 0;
-  
+
   for (let stn in STN_GIDS) {
+
     const db = await fetchSheetByGid(STN_GIDS[stn]);
+
     if (!db || db.length <= 1) continue;
-    
+
     const headers = db[0];
     const rows = db.slice(1);
-    
-    // ডেট রেঞ্জ অনুযায়ী ফিল্টার
+
     const filteredRows = rows.filter(row => {
+
       if (!row[0]) return false;
+
       const d = new Date(row[0]);
-      if (isNaN(d.getTime())) return false;
+
+      if (isNaN(d)) return false;
+
       return d >= startDate && d <= endDate;
     });
-    
+
     if (filteredRows.length === 0) continue;
-    
+
     let stnTotal = 0;
-    
-    // প্রতিটি প্রসেসের জন্য টোটাল ক্যালকুলেশন
+
     for (let i = 1; i < headers.length; i++) {
+
       let totalMeter = 0;
+
       for (let row of filteredRows) {
         totalMeter += parseFloat(row[i]) || 0;
       }
+
       const totalYds = toYds(totalMeter);
-      
+
       if (totalYds > 0) {
+
         stnTotal += totalYds;
-        const processName = headers[i];
-        processTotals[processName] = (processTotals[processName] || 0) + totalYds;
+
+        processTotals[headers[i]] =
+          (processTotals[headers[i]] || 0) + totalYds;
       }
     }
-    
+
     machineTotals[stn] = stnTotal;
     grandTotal += stnTotal;
   }
-  
-  // রিপোর্ট তৈরি
+
+  // =====================================
+  // NO DATA
+  // =====================================
+
+  if (grandTotal === 0) {
+
+    return res.json({
+      reply: htmlWrapper(
+        "No Data",
+        `❌ ${startDay} ${startMonth.toUpperCase()} ${startYear} থেকে ${endDay} ${endMonth.toUpperCase()} ${endYear} পর্যন্ত কোনো ডাটা নেই`
+      )
+    });
+  }
+
+  // =====================================
+  // MACHINE HTML
+  // =====================================
+
   let machineHtml = '';
+
   for (let stn = 1; stn <= 5; stn++) {
+
     if (machineTotals[stn] > 0) {
+
       machineHtml += `
         <div class="process-row">
-          <span class="process-name">🏭 STN ${stn}</span>
-          <span class="process-value">${formatNumber(machineTotals[stn])} YDS</span>
+          <span class="process-name">
+            STN ${stn}
+          </span>
+          <span class="process-value">
+            ${formatNumber(machineTotals[stn])} YDS
+          </span>
         </div>
       `;
     }
   }
-  
+
+  // =====================================
+  // PROCESS HTML
+  // =====================================
+
   let processHtml = '';
-  for (let [name, total] of Object.entries(processTotals).sort((a,b) => b[1] - a[1])) {
-    processHtml += `
-      <div class="process-row">
-        <span class="process-name">⚙ ${name}</span>
-        <span class="process-value">${formatNumber(total)} YDS</span>
-      </div>
-    `;
-  }
-  
-  const startStr = `${startDay.toString().padStart(2, '0')} ${startMonth.toUpperCase()}`;
-  const endStr = `${endDay.toString().padStart(2, '0')} ${endMonth.toUpperCase()}`;
-  const title = `📅 ${startStr} - ${endStr}`;
-  
+
+  Object.entries(processTotals)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([name, total]) => {
+
+      processHtml += `
+        <div class="process-row">
+          <span class="process-name">
+            ${name}
+          </span>
+          <span class="process-value">
+            ${formatNumber(total)} YDS
+          </span>
+        </div>
+      `;
+    });
+
+  // =====================================
+  // FINAL HTML
+  // =====================================
+
   const content = `
     <div class="stn-block">
-      <div class="stn-title">📊 TOTAL SUMMARY</div>
-      <div class="total-row" style="background:#22c55e20; font-size:18px;">
-        <span style="font-weight:bold">🎯 GRAND TOTAL</span>
-        <span style="float:right; font-weight:bold; color:#22c55e;">${formatNumber(grandTotal)} YDS</span>
+      <div class="stn-title">
+        🏭 MACHINE WISE
+      </div>
+
+      ${machineHtml}
+
+      <div class="total-row">
+        TOTAL: ${formatNumber(grandTotal)} YDS
       </div>
     </div>
-    
+
     <div class="stn-block">
-      <div class="stn-title">🏭 MACHINE WISE (STN 1-5)</div>
-      ${machineHtml || '<div class="process-row">⚠️ কোন ডাটা নেই</div>'}
-      <div class="total-row">
-        <span style="font-weight:bold">💰 TOTAL</span>
-        <span style="float:right">${formatNumber(grandTotal)} YDS</span>
+      <div class="stn-title">
+        ⚙ PROCESS WISE
       </div>
-    </div>
-    
-    <div class="stn-block">
-      <div class="stn-title">⚙ PROCESS WISE BREAKDOWN</div>
-      ${processHtml || '<div class="process-row">⚠️ কোন ডাটা নেই</div>'}
+
+      ${processHtml}
+
       <div class="total-row">
-        <span style="font-weight:bold">💰 TOTAL</span>
-        <span style="float:right">${formatNumber(grandTotal)} YDS</span>
+        TOTAL: ${formatNumber(grandTotal)} YDS
       </div>
     </div>
   `;
-  
-  return res.json({ reply: htmlWrapper(title, content) });
-}
 
+  const title = `
+    ${startDay.toString().padStart(2,'0')}
+    ${startMonth.toUpperCase()}
+    ${startYear}
+
+    -
+
+    ${endDay.toString().padStart(2,'0')}
+    ${endMonth.toUpperCase()}
+    ${endYear}
+  `;
+
+  return res.json({
+    reply: htmlWrapper(title, content)
+  });
+}
   
   // =====================================================
   // PER DAY MACHINE REPORT
